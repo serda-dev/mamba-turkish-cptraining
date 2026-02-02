@@ -1,0 +1,56 @@
+# Mamba 130M Continued Pretraining - Turkish
+# Optimized defaults for RTX 4060 8GB
+
+# === Model ===
+model:
+  name: "state-spaces/mamba-130m-hf"
+  torch_dtype: "float16"  # fp16 for RTX 4060
+
+# === Data ===
+data:
+  dataset_dir: "./dataset"
+  file_pattern: "*.jsonl"
+  text_field: "text"
+  min_text_length: 50  # chars
+  seq_len: 1024
+  num_workers: 2
+  prefetch_factor: 2
+
+# === Training ===
+training:
+  micro_batch_size: 1
+  gradient_accumulation_steps: 16  # effective batch = 16
+  learning_rate: 5.0e-5
+  weight_decay: 0.01
+  warmup_steps: 100
+  max_grad_norm: 1.0
+  
+  # Stopping conditions (whichever comes first)
+  max_steps: 5000
+  time_budget_seconds: 10800  # 3 hours
+  
+  # Mixed precision
+  mixed_precision: true  # uses fp16 with GradScaler
+  
+  # Optimizer
+  optimizer: "adamw"
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+
+# === Checkpointing ===
+checkpointing:
+  output_dir: "./output"
+  checkpoint_every_steps: 500
+  save_total_limit: 3  # keep last N checkpoints
+  save_final: true
+
+# === Logging ===
+logging:
+  log_every_steps: 10
+  log_file: "training.log"
+  log_json: true
+
+# === Reproducibility ===
+seed: 42
+deterministic: false  # true may slow down training

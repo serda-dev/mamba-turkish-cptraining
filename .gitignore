@@ -1,0 +1,17 @@
+__pycache__/
+*.log
+
+# --- Eklenmesi Gereken Standartlar ---
+
+# Sanal Ortamlar (Bunları asla GitHub'a atma)
+venv/
+env/
+.env
+
+# İşletim Sistemi Dosyaları (Mac/Windows gereksiz dosyaları)
+.DS_Store
+Thumbs.db
+
+# Editör Ayarları (VS Code, PyCharm vb.)
+.vscode/
+.idea/
