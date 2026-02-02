@@ -1,6 +1,9 @@
 __pycache__/
 *.log
 
+dataset/
+checkpoints/
+
 # --- Eklenmesi Gereken Standartlar ---
 
 # Sanal Ortamlar (Bunları asla GitHub'a atma)

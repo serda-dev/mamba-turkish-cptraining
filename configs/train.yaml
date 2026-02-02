@@ -4,7 +4,7 @@
 # === Model ===
 model:
   name: "state-spaces/mamba-130m-hf"
-  torch_dtype: "float16"  # fp16 for RTX 4060
+  torch_dtype: "bfloat16"  # bf16 works better with Mamba on Ada Lovelace GPUs
 
 # === Data ===
 data:
@@ -29,8 +29,9 @@ training:
   max_steps: 5000
   time_budget_seconds: 10800  # 3 hours
   
-  # Mixed precision
-  mixed_precision: true  # uses fp16 with GradScaler
+  # Mixed precision (bf16 recommended for RTX 40-series, no GradScaler needed)
+  mixed_precision: true
+  amp_dtype: "bfloat16"  # bfloat16 or float16
   
   # Optimizer
   optimizer: "adamw"

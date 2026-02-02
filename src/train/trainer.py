@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import autocast
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LinearLR, SequentialLR, ConstantLR
 from torch.utils.data import DataLoader
@@ -50,6 +50,7 @@ class Trainer:
         self.max_steps = train_cfg.get("max_steps", 5000)
         self.time_budget_seconds = train_cfg.get("time_budget_seconds", 10800)
         self.mixed_precision = train_cfg.get("mixed_precision", True)
+        self.amp_dtype = train_cfg.get("amp_dtype", "bfloat16")  # bf16 for Ada Lovelace
         
         # Checkpointing config
         ckpt_cfg = config.get("checkpointing", {})
@@ -131,12 +132,22 @@ class Trainer:
         logger.info(f"Scheduler: Linear warmup for {self.warmup_steps} steps")
     
     def _setup_scaler(self):
-        """Setup gradient scaler for mixed precision."""
+        """Setup dtype for mixed precision (bf16 doesn't need GradScaler)."""
         if self.mixed_precision and self.device.type == "cuda":
-            self.scaler = GradScaler()
-            logger.info("Mixed precision: enabled (fp16)")
+            # Determine amp dtype
+            if self.amp_dtype in ("bfloat16", "bf16"):
+                self.amp_torch_dtype = torch.bfloat16
+                self.use_grad_scaler = False  # bf16 doesn't need scaling
+                logger.info("Mixed precision: enabled (bfloat16, no GradScaler)")
+            else:
+                self.amp_torch_dtype = torch.float16
+                self.use_grad_scaler = True
+                from torch.amp import GradScaler
+                self.scaler = GradScaler('cuda')
+                logger.info("Mixed precision: enabled (fp16 with GradScaler)")
         else:
-            self.scaler = None
+            self.amp_torch_dtype = None
+            self.use_grad_scaler = False
             logger.info("Mixed precision: disabled")
     
     def _setup_logger(self):
@@ -173,7 +184,7 @@ class Trainer:
             "scheduler_state_dict": self.scheduler.state_dict(),
             "tokens_seen": self.tokens_seen,
         }
-        if self.scaler is not None:
+        if self.use_grad_scaler:
             state["scaler_state_dict"] = self.scaler.state_dict()
         
         torch.save(state, ckpt_path / "training_state.pt")
@@ -247,8 +258,8 @@ class Trainer:
             attention_mask = batch["attention_mask"].to(self.device)
             
             # Forward pass with mixed precision
-            if self.scaler is not None:
-                with autocast(dtype=torch.float16):
+            if self.amp_torch_dtype is not None:
+                with autocast('cuda', dtype=self.amp_torch_dtype):
                     outputs = self.model(
                         input_ids=input_ids,
                         attention_mask=attention_mask,
@@ -256,7 +267,10 @@ class Trainer:
                     )
                     loss = outputs.loss / self.gradient_accumulation_steps
                 
-                self.scaler.scale(loss).backward()
+                if self.use_grad_scaler:
+                    self.scaler.scale(loss).backward()
+                else:
+                    loss.backward()
             else:
                 outputs = self.model(
                     input_ids=input_ids,
@@ -273,7 +287,7 @@ class Trainer:
             # Gradient accumulation step
             if accumulation_count >= self.gradient_accumulation_steps:
                 # Gradient clipping
-                if self.scaler is not None:
+                if self.use_grad_scaler:
                     self.scaler.unscale_(self.optimizer)
                 
                 torch.nn.utils.clip_grad_norm_(
@@ -282,7 +296,7 @@ class Trainer:
                 )
                 
                 # Optimizer step
-                if self.scaler is not None:
+                if self.use_grad_scaler:
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                 else:

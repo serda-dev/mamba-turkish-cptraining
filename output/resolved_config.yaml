@@ -13,21 +13,22 @@ data:
   text_field: text
 deterministic: false
 logging:
-  log_every_steps: 1
+  log_every_steps: 10
   log_file: training.log
   log_json: true
 model:
   name: state-spaces/mamba-130m-hf
-  torch_dtype: float16
+  torch_dtype: bfloat16
 seed: 42
 training:
   adam_beta1: 0.9
   adam_beta2: 0.999
   adam_epsilon: 1.0e-08
+  amp_dtype: bfloat16
   gradient_accumulation_steps: 16
   learning_rate: 5.0e-05
   max_grad_norm: 1.0
-  max_steps: 3
+  max_steps: 5000
   micro_batch_size: 1
   mixed_precision: true
   optimizer: adamw
