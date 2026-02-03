@@ -132,6 +132,12 @@ def main():
         action="store_true",
         help="Skip environment check"
     )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Path to checkpoint directory to resume training from (e.g., output/checkpoints/step_005000)"
+    )
     
     args = parser.parse_args()
     
@@ -221,8 +227,16 @@ def main():
     logger.info("Loading model...")
     
     model_cfg = config.get("model", {})
+    
+    # Determine model source: checkpoint (if resuming) or base model
+    if args.resume:
+        model_source = args.resume
+        logger.info(f"Resuming from checkpoint: {model_source}")
+    else:
+        model_source = model_cfg.get("name", "state-spaces/mamba-130m-hf")
+    
     model = load_model(
-        model_name=model_cfg.get("name", "state-spaces/mamba-130m-hf"),
+        model_name=model_source,
         torch_dtype=model_cfg.get("torch_dtype", "float16"),
     )
     
@@ -234,6 +248,7 @@ def main():
         train_loader=dataloader,
         config=config,
         output_dir=output_dir,
+        resume_from_checkpoint=args.resume,
     )
     
     logger.info("Starting training...")

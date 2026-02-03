@@ -34,11 +34,13 @@ class Trainer:
         train_loader: DataLoader,
         config: Dict[str, Any],
         output_dir: str = "./output",
+        resume_from_checkpoint: Optional[str] = None,
     ):
         self.model = model
         self.train_loader = train_loader
         self.config = config
         self.output_dir = Path(output_dir)
+        self.resume_from_checkpoint = resume_from_checkpoint
         
         # Extract training config
         train_cfg = config.get("training", {})
@@ -86,6 +88,43 @@ class Trainer:
         self.global_step = 0
         self.tokens_seen = 0
         self.start_time = None
+        
+        # Resume from checkpoint if provided
+        if self.resume_from_checkpoint:
+            self._load_training_state(self.resume_from_checkpoint)
+    
+    def _load_training_state(self, checkpoint_path: str):
+        """Load training state from a checkpoint."""
+        ckpt_path = Path(checkpoint_path)
+        state_file = ckpt_path / "training_state.pt"
+        
+        if not state_file.exists():
+            logger.warning(f"No training_state.pt found in {checkpoint_path}, starting from step 0")
+            return
+        
+        logger.info(f"Loading training state from {state_file}")
+        state = torch.load(state_file, map_location=self.device, weights_only=False)
+        
+        # Restore training state
+        self.global_step = state.get("step", 0)
+        self.tokens_seen = state.get("tokens_seen", 0)
+        
+        # Restore optimizer state
+        if "optimizer_state_dict" in state:
+            self.optimizer.load_state_dict(state["optimizer_state_dict"])
+            logger.info("Restored optimizer state")
+        
+        # Restore scheduler state
+        if "scheduler_state_dict" in state:
+            self.scheduler.load_state_dict(state["scheduler_state_dict"])
+            logger.info("Restored scheduler state")
+        
+        # Restore scaler state if using fp16
+        if self.use_grad_scaler and "scaler_state_dict" in state:
+            self.scaler.load_state_dict(state["scaler_state_dict"])
+            logger.info("Restored GradScaler state")
+        
+        logger.info(f"Resumed from step {self.global_step}, tokens seen: {self.tokens_seen:,}")
         
     def _setup_optimizer(self):
         """Setup AdamW optimizer with weight decay."""

@@ -28,7 +28,7 @@ training:
   gradient_accumulation_steps: 16
   learning_rate: 5.0e-05
   max_grad_norm: 1.0
-  max_steps: 5000
+  max_steps: 10000
   micro_batch_size: 1
   mixed_precision: true
   optimizer: adamw

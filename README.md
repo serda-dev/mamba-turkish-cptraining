@@ -84,6 +84,14 @@ python train.py
 python train.py --max_steps 1000 --time_budget 3600
 ```
 
+### 2.1 Continue Training
+
+# Continue training from step 5000 to step 10000
+python train.py --resume output/checkpoints/step_005000 --max_steps 10000
+
+# Continue for another 3 hours
+python train.py --resume output/checkpoints/final --time_budget 10800
+
 ### 3. Monitor
 
 - Logs: `output/logs/`
