@@ -11,6 +11,8 @@ venv/
 env/
 .env
 
+output/
+
 # İşletim Sistemi Dosyaları (Mac/Windows gereksiz dosyaları)
 .DS_Store
 Thumbs.db
