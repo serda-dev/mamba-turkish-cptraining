@@ -12,6 +12,7 @@ env/
 .env
 
 output/
+*.npy
 
 # İşletim Sistemi Dosyaları (Mac/Windows gereksiz dosyaları)
 .DS_Store
