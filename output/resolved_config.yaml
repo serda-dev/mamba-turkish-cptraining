@@ -1,5 +1,5 @@
 checkpointing:
-  checkpoint_every_steps: 500
+  checkpoint_every_steps: 9999
   output_dir: ./output
   save_final: true
   save_total_limit: 3
@@ -28,10 +28,10 @@ training:
   gradient_accumulation_steps: 16
   learning_rate: 5.0e-05
   max_grad_norm: 1.0
-  max_steps: 5000
+  max_steps: 5
   micro_batch_size: 1
   mixed_precision: true
   optimizer: adamw
-  time_budget_seconds: 20000
+  time_budget_seconds: 10800
   warmup_steps: 100
   weight_decay: 0.01

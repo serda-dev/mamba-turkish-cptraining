@@ -21,8 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.data import (
     read_jsonl_files,
     preprocess_texts,
-    pack_and_tokenize,
-    PackedDataset,
+    pack_and_tokenize_to_memmap,
+    MemmapPackedDataset,
     create_dataloader,
 )
 from src.model import load_model, load_tokenizer
@@ -30,6 +30,17 @@ from src.train import Trainer
 from src.utils import check_environment, setup_logging
 
 logger = logging.getLogger(__name__)
+
+
+# --- Memory instrumentation (Stage 0) ---
+def log_mem(label: str):
+    """Log current process RSS memory usage."""
+    try:
+        import psutil
+        rss_gb = psutil.Process(os.getpid()).memory_info().rss / 1e9
+        logger.info(f"[MEM] {label}: {rss_gb:.2f} GB RSS")
+    except ImportError:
+        pass
 
 
 def load_config(config_path: str) -> dict:
@@ -177,6 +188,7 @@ def main():
     
     # === Data Preparation ===
     logger.info("Preparing data...")
+    log_mem("before data preparation")
     
     data_cfg = config.get("data", {})
     dataset_dir = data_cfg.get("dataset_dir", "./dataset")
@@ -198,19 +210,25 @@ def main():
     model_name = config.get("model", {}).get("name", "state-spaces/mamba-370m-hf")
     tokenizer = load_tokenizer(model_name)
     
-    # Read and preprocess
+    # Read, preprocess, tokenize, and pack to memmap (memory-efficient)
+    log_mem("before tokenization")
     texts = read_jsonl_files(data_files, text_field=text_field)
     texts = preprocess_texts(texts, min_length=min_text_length)
     
-    # Tokenize and pack
-    chunks = pack_and_tokenize(texts, tokenizer, seq_len=seq_len)
+    cache_dir = str(Path(output_dir) / "token_cache")
+    memmap_path, num_chunks = pack_and_tokenize_to_memmap(
+        texts, tokenizer, seq_len=seq_len,
+        cache_dir=cache_dir,
+    )
+    log_mem("after tokenization + memmap write")
     
-    if not chunks:
+    if num_chunks == 0:
         logger.error("No valid chunks created from data!")
         sys.exit(1)
     
-    # Create dataset and dataloader
-    dataset = PackedDataset(chunks)
+    # Create dataset from memmap (near-zero RAM)
+    dataset = MemmapPackedDataset(memmap_path, num_chunks, seq_len)
+    log_mem("after MemmapPackedDataset created")
     
     train_cfg = config.get("training", {})
     dataloader = create_dataloader(
@@ -239,6 +257,7 @@ def main():
         model_name=model_source,
         torch_dtype=model_cfg.get("torch_dtype", "float16"),
     )
+    log_mem("after model loaded")
     
     # === Training ===
     logger.info("Initializing trainer...")

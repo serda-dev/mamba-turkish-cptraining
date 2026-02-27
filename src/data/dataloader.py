@@ -1,8 +1,11 @@
 """PyTorch Dataset and DataLoader for packed sequences."""
 
+import json
 import logging
+from pathlib import Path
 from typing import List, Optional
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -11,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class PackedDataset(Dataset):
     """
-    Dataset for pre-packed token sequences.
+    Dataset for pre-packed token sequences (in-RAM).
     
     Each item is a dict with:
       - input_ids: token IDs [seq_len]
@@ -41,6 +44,57 @@ class PackedDataset(Dataset):
             "input_ids": input_ids,
             "labels": input_ids.clone(),  # causal LM: labels = inputs
             "attention_mask": torch.ones_like(input_ids),
+        }
+
+
+class MemmapPackedDataset(Dataset):
+    """
+    Memory-mapped dataset for pre-packed token sequences.
+    
+    Reads from a numpy memmap file — O(1) RAM regardless of dataset size.
+    Drop-in replacement for PackedDataset with identical output format.
+    """
+    
+    def __init__(self, memmap_path: str, num_chunks: int, seq_len: int):
+        """
+        Args:
+            memmap_path: Path to the .npy memmap file
+            num_chunks: Number of chunks in the file
+            seq_len: Sequence length of each chunk
+        """
+        # Load dtype from metadata if available
+        meta_path = str(Path(memmap_path).parent / "metadata.json")
+        dtype = np.uint16  # default
+        if Path(meta_path).exists():
+            with open(meta_path) as f:
+                meta = json.load(f)
+                dtype_str = meta.get("dtype", "uint16")
+                dtype = np.dtype(dtype_str)
+        
+        self.data = np.memmap(
+            memmap_path, dtype=dtype, mode='r',
+            shape=(num_chunks, seq_len)
+        )
+        self.num_chunks = num_chunks
+        self.seq_len = seq_len
+        
+        logger.info(
+            f"MemmapPackedDataset: {num_chunks} chunks, seq_len={seq_len}, "
+            f"dtype={dtype}, memmap file={memmap_path}"
+        )
+    
+    def __len__(self) -> int:
+        return self.num_chunks
+    
+    def __getitem__(self, idx: int) -> dict:
+        # Read row from memmap → convert to int64 tensor
+        tokens = self.data[idx]
+        input_ids = torch.from_numpy(tokens.astype(np.int64))
+        
+        return {
+            "input_ids": input_ids,
+            "labels": input_ids.clone(),  # causal LM: labels = inputs
+            "attention_mask": torch.ones(self.seq_len, dtype=torch.long),
         }
 
 
