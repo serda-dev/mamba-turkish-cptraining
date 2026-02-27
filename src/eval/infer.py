@@ -23,7 +23,7 @@ from transformers import AutoTokenizer, MambaForCausalLM
 # =============================================================================
 
 # Base model for tokenizer (CPT did not modify the tokenizer)
-BASE_MODEL_ID = "state-spaces/mamba-130m-hf"
+BASE_MODEL_ID = "state-spaces/mamba-370m-hf"
 
 # Default generation parameters (tuned for creative Turkish text generation)
 DEFAULT_MAX_NEW_TOKENS = 128

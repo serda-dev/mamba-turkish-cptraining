@@ -24,7 +24,7 @@ from transformers import AutoTokenizer, MambaForCausalLM
 # Configuration Constants
 # =============================================================================
 
-BASE_MODEL_ID = "state-spaces/mamba-130m-hf"
+BASE_MODEL_ID = "state-spaces/mamba-370m-hf"
 
 # Default evaluation texts (Turkish, covering different domains)
 DEFAULT_EVAL_TEXTS = [

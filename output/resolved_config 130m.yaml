@@ -17,7 +17,7 @@ logging:
   log_file: training.log
   log_json: true
 model:
-  name: state-spaces/mamba-370m-hf
+  name: state-spaces/mamba-130m-hf
   torch_dtype: bfloat16
 seed: 42
 training:
@@ -32,6 +32,6 @@ training:
   micro_batch_size: 1
   mixed_precision: true
   optimizer: adamw
-  time_budget_seconds: 20000
+  time_budget_seconds: 10800
   warmup_steps: 100
   weight_decay: 0.01

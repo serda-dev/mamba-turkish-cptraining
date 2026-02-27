@@ -195,7 +195,7 @@ def main():
     logger.info(f"Found {len(data_files)} data files")
     
     # Load tokenizer first (needed for packing)
-    model_name = config.get("model", {}).get("name", "state-spaces/mamba-130m-hf")
+    model_name = config.get("model", {}).get("name", "state-spaces/mamba-370m-hf")
     tokenizer = load_tokenizer(model_name)
     
     # Read and preprocess
@@ -233,7 +233,7 @@ def main():
         model_source = args.resume
         logger.info(f"Resuming from checkpoint: {model_source}")
     else:
-        model_source = model_cfg.get("name", "state-spaces/mamba-130m-hf")
+        model_source = model_cfg.get("name", "state-spaces/mamba-370m-hf")
     
     model = load_model(
         model_name=model_source,

@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 def load_tokenizer(
-    model_name: str = "state-spaces/mamba-130m-hf",
+    #model_name: str = "state-spaces/mamba-370m-hf",
+    model_name: str = "state-spaces/mamba-370m-hf",
 ) -> AutoTokenizer:
     """
     Load tokenizer for Mamba model.
@@ -36,7 +37,7 @@ def load_tokenizer(
 
 
 def load_model(
-    model_name: str = "state-spaces/mamba-130m-hf",
+    model_name: str = "state-spaces/mamba-370m-hf",
     torch_dtype: str = "float16",
     device: Optional[str] = None,
 ) -> MambaForCausalLM:
@@ -95,7 +96,7 @@ def load_model(
 
 
 def load_model_and_tokenizer(
-    model_name: str = "state-spaces/mamba-130m-hf",
+    model_name: str = "state-spaces/mamba-370m-hf",
     torch_dtype: str = "float16",
     device: Optional[str] = None,
 ) -> Tuple[MambaForCausalLM, AutoTokenizer]:
