@@ -1,8 +1,0 @@
-{
-  "num_chunks": 432641,
-  "seq_len": 1024,
-  "dtype": "<class 'numpy.uint16'>",
-  "texts_processed": 606871,
-  "total_tokens": 443024384,
-  "file_size_mb": 886.0
-}
