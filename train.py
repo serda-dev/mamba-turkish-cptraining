@@ -1,8 +1,4 @@
-"""
-Mamba 130M Continued Pretraining for Turkish
-
-Main orchestration script.
-"""
+"""Jamba2 3B continued pretraining orchestration."""
 
 import argparse
 import glob
@@ -100,7 +96,7 @@ def save_resolved_config(config: dict, output_dir: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Mamba 130M Continued Pretraining for Turkish"
+        description="Jamba2 3B Continued Pretraining for Turkish"
     )
     parser.add_argument(
         "--config", "-c",
@@ -168,7 +164,7 @@ def main():
     setup_logging(log_level="INFO", log_file=str(log_file))
     
     logger.info("=" * 60)
-    logger.info("Mamba CPT Pipeline - Turkish")
+    logger.info("Jamba2 CPT Pipeline - Turkish")
     logger.info("=" * 60)
     
     # Environment check
@@ -182,6 +178,11 @@ def main():
     deterministic = config.get("deterministic", False)
     set_seed(seed, deterministic)
     logger.info(f"Random seed: {seed}")
+
+    # RTX 6000 Ada benefits from TF32 for matmuls while keeping bf16 activations.
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    logger.info("TF32 matmul/cuDNN enabled")
     
     # Save resolved config
     save_resolved_config(config, output_dir)
@@ -207,7 +208,7 @@ def main():
     logger.info(f"Found {len(data_files)} data files")
     
     # Load tokenizer first (needed for packing)
-    model_name = config.get("model", {}).get("name", "state-spaces/mamba-370m-hf")
+    model_name = config.get("model", {}).get("name", "ai21labs/AI21-Jamba2-3B")
     tokenizer = load_tokenizer(model_name)
     
     # Read, preprocess, tokenize, and pack to memmap (memory-efficient)
@@ -251,11 +252,14 @@ def main():
         model_source = args.resume
         logger.info(f"Resuming from checkpoint: {model_source}")
     else:
-        model_source = model_cfg.get("name", "state-spaces/mamba-370m-hf")
-    
+        model_source = model_cfg.get("name", "ai21labs/AI21-Jamba2-3B")
+
     model = load_model(
         model_name=model_source,
-        torch_dtype=model_cfg.get("torch_dtype", "float16"),
+        torch_dtype=model_cfg.get("torch_dtype", "bfloat16"),
+        attn_implementation=model_cfg.get("attn_implementation", "sdpa"),
+        use_mamba_kernels=model_cfg.get("use_mamba_kernels", True),
+        use_cache=model_cfg.get("use_cache", False),
     )
     log_mem("after model loaded")
     
@@ -268,6 +272,7 @@ def main():
         config=config,
         output_dir=output_dir,
         resume_from_checkpoint=args.resume,
+        tokenizer=tokenizer,
     )
     
     logger.info("Starting training...")

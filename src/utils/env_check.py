@@ -41,7 +41,7 @@ def check_environment(verbose: bool = True) -> Dict[str, Any]:
     except ImportError:
         info["transformers_version"] = "NOT INSTALLED"
     
-    # Mamba-related packages
+    # Jamba-related kernel packages
     try:
         import mamba_ssm
         info["mamba_ssm_version"] = mamba_ssm.__version__
@@ -55,6 +55,12 @@ def check_environment(verbose: bool = True) -> Dict[str, Any]:
         info["causal_conv1d_version"] = getattr(causal_conv1d, "__version__", "installed")
     except ImportError:
         info["causal_conv1d_version"] = "NOT INSTALLED"
+
+    try:
+        import bitsandbytes as bnb
+        info["bitsandbytes_version"] = getattr(bnb, "__version__", "installed")
+    except ImportError:
+        info["bitsandbytes_version"] = "NOT INSTALLED"
     
     # Einops
     try:
@@ -79,6 +85,7 @@ def check_environment(verbose: bool = True) -> Dict[str, Any]:
         print(f"Transformers:  {info.get('transformers_version', 'N/A')}")
         print(f"mamba-ssm:     {info.get('mamba_ssm_version', 'N/A')}")
         print(f"causal_conv1d: {info.get('causal_conv1d_version', 'N/A')}")
+        print(f"bitsandbytes:  {info.get('bitsandbytes_version', 'N/A')}")
         print(f"einops:        {info.get('einops_version', 'N/A')}")
         print("=" * 60)
         
@@ -87,7 +94,9 @@ def check_environment(verbose: bool = True) -> Dict[str, Any]:
             print("⚠️  WARNING: CUDA not available! Training will be slow on CPU.")
         
         if info.get("mamba_ssm_version") == "NOT INSTALLED":
-            print("⚠️  WARNING: mamba-ssm not installed. May use slower implementation.")
+            print("⚠️  WARNING: mamba-ssm not installed. Jamba fast kernels will be unavailable.")
+        if info.get("bitsandbytes_version") == "NOT INSTALLED":
+            print("⚠️  WARNING: bitsandbytes not installed. adamw_8bit optimizer will not work.")
     
     return info
 

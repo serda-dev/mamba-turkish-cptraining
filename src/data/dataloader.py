@@ -54,6 +54,30 @@ class MemmapPackedDataset(Dataset):
     Reads from a numpy memmap file — O(1) RAM regardless of dataset size.
     Drop-in replacement for PackedDataset with identical output format.
     """
+
+    @staticmethod
+    def _parse_dtype(dtype_value) -> np.dtype:
+        """Parse dtype from metadata, including legacy class-string format."""
+        if isinstance(dtype_value, np.dtype):
+            return dtype_value
+
+        if isinstance(dtype_value, type):
+            return np.dtype(dtype_value)
+
+        if isinstance(dtype_value, str):
+            s = dtype_value.strip()
+            # Legacy value looked like: "<class 'numpy.uint16'>"
+            if s.startswith("<class 'numpy.") and s.endswith("'>"):
+                s = s[len("<class 'numpy."):-2]
+            try:
+                return np.dtype(s)
+            except TypeError:
+                pass
+
+        logger.warning(
+            f"Unrecognized dtype in metadata: {dtype_value!r}; falling back to uint16"
+        )
+        return np.dtype("uint16")
     
     def __init__(self, memmap_path: str, num_chunks: int, seq_len: int):
         """
@@ -69,7 +93,7 @@ class MemmapPackedDataset(Dataset):
             with open(meta_path) as f:
                 meta = json.load(f)
                 dtype_str = meta.get("dtype", "uint16")
-                dtype = np.dtype(dtype_str)
+                dtype = self._parse_dtype(dtype_str)
         
         self.data = np.memmap(
             memmap_path, dtype=dtype, mode='r',

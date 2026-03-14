@@ -1,14 +1,15 @@
-# Mamba CPT Pipeline for Turkish
-# Pinned to match user environment
+# Jamba2 CPT Pipeline for Turkish
+# Pinned for RTX 6000 Ada / CUDA 12.1 style environments
 
 torch==2.5.1+cu121
-transformers==4.57.6
+transformers==4.56.1
 einops==0.8.2
 mamba-ssm==2.2.4
 causal-conv1d==1.5.0.post8
+bitsandbytes==0.48.1
 
 # Data processing
-datasets>=2.14.0
+numpy>=1.24.0
 
 # Config
 pyyaml>=6.0

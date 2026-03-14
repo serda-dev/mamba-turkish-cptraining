@@ -35,12 +35,14 @@ class Trainer:
         config: Dict[str, Any],
         output_dir: str = "./output",
         resume_from_checkpoint: Optional[str] = None,
+        tokenizer=None,
     ):
         self.model = model
         self.train_loader = train_loader
         self.config = config
         self.output_dir = Path(output_dir)
         self.resume_from_checkpoint = resume_from_checkpoint
+        self.tokenizer = tokenizer
         
         # Extract training config
         train_cfg = config.get("training", {})
@@ -53,6 +55,12 @@ class Trainer:
         self.time_budget_seconds = train_cfg.get("time_budget_seconds", 10800)
         self.mixed_precision = train_cfg.get("mixed_precision", True)
         self.amp_dtype = train_cfg.get("amp_dtype", "bfloat16")  # bf16 for Ada Lovelace
+        self.optimizer_name = train_cfg.get("optimizer", "adamw_8bit").lower()
+        self.adam_beta1 = train_cfg.get("adam_beta1", 0.9)
+        self.adam_beta2 = train_cfg.get("adam_beta2", 0.999)
+        self.adam_epsilon = train_cfg.get("adam_epsilon", 1e-8)
+        self.gradient_checkpointing = train_cfg.get("gradient_checkpointing", True)
+        self.empty_cache_every_steps = train_cfg.get("empty_cache_every_steps", 0)
         
         # Checkpointing config
         ckpt_cfg = config.get("checkpointing", {})
@@ -71,6 +79,14 @@ class Trainer:
         
         # Device
         self.device = next(model.parameters()).device
+
+        if self.gradient_checkpointing and hasattr(self.model, "gradient_checkpointing_enable"):
+            self.model.gradient_checkpointing_enable()
+            logger.info("Gradient checkpointing: enabled")
+
+        if hasattr(self.model.config, "use_cache"):
+            self.model.config.use_cache = False
+            logger.info("Model config override: use_cache=False for training")
         
         # Setup directories
         self.checkpoint_dir = self.output_dir / "checkpoints"
@@ -140,12 +156,46 @@ class Trainer:
             else:
                 decay_params.append(param)
         
-        self.optimizer = AdamW([
+        param_groups = [
             {"params": decay_params, "weight_decay": self.weight_decay},
             {"params": no_decay_params, "weight_decay": 0.0},
-        ], lr=self.lr, betas=(0.9, 0.999), eps=1e-8)
-        
-        logger.info(f"Optimizer: AdamW, lr={self.lr}, weight_decay={self.weight_decay}")
+        ]
+
+        if self.optimizer_name == "adamw":
+            self.optimizer = AdamW(
+                param_groups,
+                lr=self.lr,
+                betas=(self.adam_beta1, self.adam_beta2),
+                eps=self.adam_epsilon,
+            )
+            logger.info("Optimizer: AdamW (torch)")
+        elif self.optimizer_name == "adamw_8bit":
+            try:
+                import bitsandbytes as bnb
+            except ImportError as exc:
+                raise ImportError(
+                    "optimizer=adamw_8bit requires bitsandbytes. "
+                    "Install the pinned package from requirements.txt."
+                ) from exc
+
+            self.optimizer = bnb.optim.AdamW8bit(
+                param_groups,
+                lr=self.lr,
+                betas=(self.adam_beta1, self.adam_beta2),
+                eps=self.adam_epsilon,
+            )
+            logger.info("Optimizer: AdamW8bit (bitsandbytes)")
+        else:
+            raise ValueError(f"Unsupported optimizer: {self.optimizer_name}")
+
+        logger.info(
+            "Optimizer settings: lr=%s, weight_decay=%s, betas=(%s, %s), eps=%s",
+            self.lr,
+            self.weight_decay,
+            self.adam_beta1,
+            self.adam_beta2,
+            self.adam_epsilon,
+        )
     
     def _setup_scheduler(self):
         """Setup learning rate scheduler with warmup."""
@@ -215,6 +265,8 @@ class Trainer:
         
         # Save model
         self.model.save_pretrained(ckpt_path)
+        if self.tokenizer is not None:
+            self.tokenizer.save_pretrained(ckpt_path)
         
         # Save training state
         state = {
@@ -342,7 +394,10 @@ class Trainer:
                     self.optimizer.step()
                 
                 self.scheduler.step()
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=True)
+
+                if self.empty_cache_every_steps and self.global_step % self.empty_cache_every_steps == 0:
+                    torch.cuda.empty_cache()
                 
                 self.global_step += 1
                 

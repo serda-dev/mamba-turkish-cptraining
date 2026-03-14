@@ -160,8 +160,8 @@ def pack_and_tokenize_to_memmap(
     
     pad_token_id = tokenizer.pad_token_id or eos_token_id
     
-    # Use uint16 if vocab fits (GPT-NeoX vocab=50280 fits in uint16 max=65535)
-    dtype = np.uint16 if tokenizer.vocab_size < 65536 else np.uint32
+    # Jamba2 uses vocab_size=65536, which still fits into uint16 IDs (0..65535).
+    dtype = np.uint16 if tokenizer.vocab_size <= 65536 else np.uint32
     
     # Tokenize and pack — store chunks as compact numpy arrays
     # (each np.uint16 array of 1024 = 2 KB, vs ~37 KB as Python list)
@@ -215,7 +215,7 @@ def pack_and_tokenize_to_memmap(
         json.dump({
             "num_chunks": num_chunks,
             "seq_len": seq_len,
-            "dtype": str(dtype),
+            "dtype": np.dtype(dtype).name,
             "texts_processed": texts_processed,
             "total_tokens": num_chunks * seq_len,
             "file_size_mb": round(file_size_mb, 1),

@@ -1,10 +1,13 @@
-# Mamba 130M Continued Pretraining - Turkish
-# Optimized defaults for RTX 4060 8GB
+# Jamba2 3B Continued Pretraining - Turkish
+# Optimized defaults for RTX 6000 Ada 48GB
 
 # === Model ===
 model:
-  name: "state-spaces/mamba-370m-hf"
-  torch_dtype: "bfloat16"  # bf16 works better with Mamba on Ada Lovelace GPUs
+  name: "ai21labs/AI21-Jamba2-3B"
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"  # safer than flash-attn for first deployment
+  use_mamba_kernels: true
+  use_cache: false
 
 # === Data ===
 data:
@@ -19,25 +22,27 @@ data:
 # === Training ===
 training:
   micro_batch_size: 1
-  gradient_accumulation_steps: 16  # effective batch = 16
-  learning_rate: 5.0e-5
+  gradient_accumulation_steps: 8  # effective batch = 8
+  learning_rate: 2.0e-5
   weight_decay: 0.01
-  warmup_steps: 100
+  warmup_steps: 200
   max_grad_norm: 1.0
+  gradient_checkpointing: true
   
   # Stopping conditions (whichever comes first)
   max_steps: 5000
   time_budget_seconds: 10800  # 3 hours
   
-  # Mixed precision (bf16 recommended for RTX 40-series, no GradScaler needed)
+  # Mixed precision
   mixed_precision: true
-  amp_dtype: "bfloat16"  # bfloat16 or float16
+  amp_dtype: "bfloat16"
   
-  # Optimizer
-  optimizer: "adamw"
+  # Optimizer: 8-bit AdamW is the default to keep 3B CPT comfortable on 48GB VRAM
+  optimizer: "adamw_8bit"
   adam_beta1: 0.9
   adam_beta2: 0.999
   adam_epsilon: 1.0e-8
+  empty_cache_every_steps: 50
 
 # === Checkpointing ===
 checkpointing:

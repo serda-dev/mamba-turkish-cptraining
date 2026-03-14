@@ -1,60 +1,16 @@
-"""Load Mamba model and tokenizer from HuggingFace."""
+"""Model and tokenizer loading for Jamba CPT."""
 
 import logging
 from typing import Optional, Tuple
 
 import torch
-from transformers import AutoTokenizer, MambaForCausalLM
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
 
-def load_tokenizer(
-    #model_name: str = "state-spaces/mamba-370m-hf",
-    model_name: str = "state-spaces/mamba-370m-hf",
-) -> AutoTokenizer:
-    """
-    Load tokenizer for Mamba model.
-    
-    Args:
-        model_name: HuggingFace model identifier
-        
-    Returns:
-        Configured tokenizer
-    """
-    logger.info(f"Loading tokenizer: {model_name}")
-    
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    
-    # Ensure pad token is set
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        logger.info(f"Set pad_token to eos_token: '{tokenizer.pad_token}'")
-    
-    logger.info(f"Tokenizer loaded: vocab_size={tokenizer.vocab_size}")
-    
-    return tokenizer
-
-
-def load_model(
-    model_name: str = "state-spaces/mamba-370m-hf",
-    torch_dtype: str = "float16",
-    device: Optional[str] = None,
-) -> MambaForCausalLM:
-    """
-    Load Mamba model for causal language modeling.
-    
-    Args:
-        model_name: HuggingFace model identifier
-        torch_dtype: "float16", "bfloat16", or "float32"
-        device: Target device (auto-detected if None)
-        
-    Returns:
-        Loaded model on specified device
-    """
-    logger.info(f"Loading model: {model_name}")
-    
-    # Parse dtype
+def parse_torch_dtype(torch_dtype: str) -> torch.dtype:
+    """Map a user-facing dtype string to a torch dtype."""
     dtype_map = {
         "float16": torch.float16,
         "fp16": torch.float16,
@@ -63,44 +19,98 @@ def load_model(
         "float32": torch.float32,
         "fp32": torch.float32,
     }
-    dtype = dtype_map.get(torch_dtype.lower(), torch.float16)
-    
-    # Auto-detect device
+    return dtype_map.get(torch_dtype.lower(), torch.bfloat16)
+
+
+def load_tokenizer(model_name: str) -> AutoTokenizer:
+    """Load tokenizer for a pretrained causal LM checkpoint."""
+    logger.info(f"Loading tokenizer: {model_name}")
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
+            logger.info("Tokenizer had no pad token, reusing eos token as pad")
+        else:
+            raise ValueError("Tokenizer has neither pad_token nor eos_token")
+
+    logger.info(
+        "Tokenizer loaded: vocab_size=%s, pad_token_id=%s, eos_token_id=%s",
+        tokenizer.vocab_size,
+        tokenizer.pad_token_id,
+        tokenizer.eos_token_id,
+    )
+    return tokenizer
+
+
+def load_model(
+    model_name: str,
+    torch_dtype: str = "bfloat16",
+    device: Optional[str] = None,
+    attn_implementation: str = "sdpa",
+    use_mamba_kernels: bool = True,
+    use_cache: bool = False,
+) -> torch.nn.Module:
+    """Load a causal LM with Jamba-specific config overrides."""
+    logger.info(f"Loading model: {model_name}")
+
+    dtype = parse_torch_dtype(torch_dtype)
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    logger.info(f"Using dtype={dtype}, device={device}")
-    
-    # Load model
-    model = MambaForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=dtype,
+
+    config = AutoConfig.from_pretrained(model_name)
+    if hasattr(config, "use_mamba_kernels"):
+        config.use_mamba_kernels = use_mamba_kernels
+    if hasattr(config, "use_cache"):
+        config.use_cache = use_cache
+    if hasattr(config, "_attn_implementation"):
+        config._attn_implementation = attn_implementation
+
+    logger.info(
+        "Model config overrides: dtype=%s, device=%s, attn_implementation=%s, "
+        "use_mamba_kernels=%s, use_cache=%s",
+        dtype,
+        device,
+        attn_implementation,
+        use_mamba_kernels,
+        use_cache,
     )
-    
-    # Move to device
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        config=config,
+        torch_dtype=dtype,
+        attn_implementation=attn_implementation,
+    )
     model = model.to(device)
-    
-    # Enable gradient checkpointing for memory efficiency (optional)
-    # model.gradient_checkpointing_enable()
-    
-    # Count parameters
+
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
     logger.info(
-        f"Model loaded: {total_params:,} total params, "
-        f"{trainable_params:,} trainable ({trainable_params/total_params*100:.1f}%)"
+        "Model loaded: %s total params, %s trainable (%.1f%%)",
+        f"{total_params:,}",
+        f"{trainable_params:,}",
+        trainable_params / total_params * 100,
     )
-    
     return model
 
 
 def load_model_and_tokenizer(
-    model_name: str = "state-spaces/mamba-370m-hf",
-    torch_dtype: str = "float16",
+    model_name: str,
+    torch_dtype: str = "bfloat16",
     device: Optional[str] = None,
-) -> Tuple[MambaForCausalLM, AutoTokenizer]:
+    attn_implementation: str = "sdpa",
+    use_mamba_kernels: bool = True,
+    use_cache: bool = False,
+) -> Tuple[torch.nn.Module, AutoTokenizer]:
     """Convenience function to load both model and tokenizer."""
     tokenizer = load_tokenizer(model_name)
-    model = load_model(model_name, torch_dtype, device)
+    model = load_model(
+        model_name=model_name,
+        torch_dtype=torch_dtype,
+        device=device,
+        attn_implementation=attn_implementation,
+        use_mamba_kernels=use_mamba_kernels,
+        use_cache=use_cache,
+    )
     return model, tokenizer
