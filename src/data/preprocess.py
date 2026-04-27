@@ -27,10 +27,20 @@ def clean_text(text: str) -> str:
     return text
 
 
+def strip_legacy_end_markers(text: str) -> str:
+    """Remove legacy dataset end markers that were injected for older Mamba runs."""
+    for marker in ("<|endoftext|>",):
+        text = text.rstrip()
+        if text.endswith(marker):
+            text = text[: -len(marker)].rstrip()
+    return text
+
+
 def preprocess_texts(
     texts: Iterator[str],
     min_length: int = 50,
     apply_cleaning: bool = True,
+    strip_legacy_markers: bool = True,
 ) -> Iterator[str]:
     """
     Preprocess and filter text iterator.
@@ -49,6 +59,9 @@ def preprocess_texts(
     
     for text in texts:
         total += 1
+
+        if strip_legacy_markers:
+            text = strip_legacy_end_markers(text)
         
         if apply_cleaning:
             text = clean_text(text)

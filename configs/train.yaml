@@ -9,12 +9,19 @@ model:
   use_mamba_kernels: true
   use_cache: false
 
+# === Tokenizer ===
+tokenizer:
+  path: "./customtokenizer"
+
 # === Data ===
 data:
+  hf_dataset_id: "serda-dev/turkish-raw-text-cleaned"
+  hf_cache_dir: "./dataset/hf-cache"
   dataset_dir: "./dataset"
   file_pattern: "*.jsonl"
   text_field: "text"
   min_text_length: 50  # chars
+  strip_legacy_endoftext: true
   seq_len: 1024
   num_workers: 2
   prefetch_factor: 2
@@ -30,8 +37,8 @@ training:
   gradient_checkpointing: true
   
   # Stopping conditions (whichever comes first)
-  max_steps: 5000
-  time_budget_seconds: 10800  # 3 hours
+  max_steps: 10000
+  time_budget_seconds: 432000  # 120 hours; interruptible hosts will still stop earlier if preempted
   
   # Mixed precision
   mixed_precision: true
@@ -47,8 +54,8 @@ training:
 # === Checkpointing ===
 checkpointing:
   output_dir: "./output"
-  checkpoint_every_steps: 500
-  save_total_limit: 3  # keep last N checkpoints
+  checkpoint_every_steps: 100
+  save_total_limit: 6  # keep a deeper history for preemptible hosts
   save_final: true
 
 # === Logging ===

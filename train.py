@@ -10,6 +10,7 @@ from pathlib import Path
 
 import torch
 import yaml
+from huggingface_hub import snapshot_download
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -92,6 +93,28 @@ def save_resolved_config(config: dict, output_dir: str):
     with open(output_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
     logger.info(f"Resolved config saved to {output_path}")
+
+
+def resolve_data_files(data_cfg: dict, output_dir: str) -> list[str]:
+    """Resolve dataset files from local disk or the Hugging Face Hub."""
+    hf_dataset_id = data_cfg.get("hf_dataset_id")
+    file_pattern = data_cfg.get("file_pattern", "*.jsonl")
+
+    if hf_dataset_id:
+        cache_dir = data_cfg.get("hf_cache_dir") or str(Path(output_dir) / "hf_dataset_cache")
+        logger.info(f"Downloading dataset snapshot: {hf_dataset_id}")
+        local_dir = snapshot_download(
+            repo_id=hf_dataset_id,
+            repo_type="dataset",
+            cache_dir=cache_dir,
+            allow_patterns=[file_pattern, "README.md"],
+        )
+        data_files = sorted(glob.glob(os.path.join(local_dir, file_pattern)))
+        logger.info(f"Resolved {len(data_files)} dataset shard(s) from HF cache: {local_dir}")
+        return data_files
+
+    dataset_dir = data_cfg.get("dataset_dir", "./dataset")
+    return sorted(glob.glob(os.path.join(dataset_dir, file_pattern)))
 
 
 def main():
@@ -192,29 +215,32 @@ def main():
     log_mem("before data preparation")
     
     data_cfg = config.get("data", {})
-    dataset_dir = data_cfg.get("dataset_dir", "./dataset")
-    file_pattern = data_cfg.get("file_pattern", "*.jsonl")
     text_field = data_cfg.get("text_field", "text")
     min_text_length = data_cfg.get("min_text_length", 50)
     seq_len = data_cfg.get("seq_len", 1024)
+    strip_legacy_endoftext = data_cfg.get("strip_legacy_endoftext", True)
     
     # Find data files
-    data_files = glob.glob(os.path.join(dataset_dir, file_pattern))
+    data_files = resolve_data_files(data_cfg, output_dir)
     if not data_files:
-        logger.error(f"No data files found in {dataset_dir}/{file_pattern}")
-        logger.error("Please add JSONL files to the dataset directory.")
+        logger.error("No data files found from local path or Hugging Face dataset snapshot.")
         sys.exit(1)
     
     logger.info(f"Found {len(data_files)} data files")
     
     # Load tokenizer first (needed for packing)
     model_name = config.get("model", {}).get("name", "ai21labs/AI21-Jamba2-3B")
-    tokenizer = load_tokenizer(model_name)
+    tokenizer_path = config.get("tokenizer", {}).get("path", model_name)
+    tokenizer = load_tokenizer(tokenizer_path)
     
     # Read, preprocess, tokenize, and pack to memmap (memory-efficient)
     log_mem("before tokenization")
     texts = read_jsonl_files(data_files, text_field=text_field)
-    texts = preprocess_texts(texts, min_length=min_text_length)
+    texts = preprocess_texts(
+        texts,
+        min_length=min_text_length,
+        strip_legacy_markers=strip_legacy_endoftext,
+    )
     
     cache_dir = str(Path(output_dir) / "token_cache")
     memmap_path, num_chunks = pack_and_tokenize_to_memmap(
@@ -256,6 +282,7 @@ def main():
 
     model = load_model(
         model_name=model_source,
+        tokenizer=tokenizer,
         torch_dtype=model_cfg.get("torch_dtype", "bfloat16"),
         attn_implementation=model_cfg.get("attn_implementation", "sdpa"),
         use_mamba_kernels=model_cfg.get("use_mamba_kernels", True),
