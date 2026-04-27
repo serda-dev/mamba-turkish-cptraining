@@ -1,11 +1,20 @@
 """JSONL reader with streaming and validation."""
 
+import gzip
 import json
 import logging
 from pathlib import Path
 from typing import Iterator, List, Optional, Union
 
 logger = logging.getLogger(__name__)
+
+
+def open_text_maybe_gzip(file_path: Union[str, Path]):
+    """Open plain JSONL or gzip-compressed JSONL as a text stream."""
+    file_path = Path(file_path)
+    if file_path.suffix == ".gz":
+        return gzip.open(file_path, "rt", encoding="utf-8")
+    return open(file_path, "r", encoding="utf-8")
 
 
 def read_jsonl_files(
@@ -42,7 +51,7 @@ def read_jsonl_files(
             
         logger.info(f"Reading: {file_path}")
         
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open_text_maybe_gzip(file_path) as f:
             for line_num, line in enumerate(f, 1):
                 total_lines += 1
                 line = line.strip()
@@ -99,6 +108,6 @@ def count_jsonl_lines(file_paths: Union[str, Path, List[Union[str, Path]]]) -> i
     for file_path in file_paths:
         file_path = Path(file_path)
         if file_path.exists():
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open_text_maybe_gzip(file_path) as f:
                 total += sum(1 for _ in f)
     return total

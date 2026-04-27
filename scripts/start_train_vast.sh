@@ -2,10 +2,11 @@
 set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/workspace/mamba-cpt-tr}"
-CONFIG_PATH="${CONFIG_PATH:-configs/train.yaml}"
+CONFIG_PATH="${CONFIG_PATH:-configs/cpt_4phase.yaml}"
 OUTPUT_DIR="${OUTPUT_DIR:-output}"
 AUTO_RESUME="${AUTO_RESUME:-1}"
 HF_DATASET_ID="${HF_DATASET_ID:-}"
+TRAIN_ENTRYPOINT="${TRAIN_ENTRYPOINT:-curriculum}"
 
 cd "${PROJECT_DIR}"
 
@@ -15,7 +16,7 @@ export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-/workspace/hf-cache/hub}"
 export TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 
-mkdir -p output dataset "${HF_HOME}" "${TRANSFORMERS_CACHE}" "${HUGGINGFACE_HUB_CACHE}"
+mkdir -p output dataset /data /cache /checkpoints /logs "${HF_HOME}" "${TRANSFORMERS_CACHE}" "${HUGGINGFACE_HUB_CACHE}"
 
 TRAIN_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -82,9 +83,13 @@ resolve_latest_checkpoint() {
   return 1
 }
 
-TRAIN_CMD=(python train.py --config "${RESOLVED_CONFIG_PATH}")
+if [[ "${TRAIN_ENTRYPOINT}" == "legacy" ]]; then
+  TRAIN_CMD=(python train.py --config "${RESOLVED_CONFIG_PATH}")
+else
+  TRAIN_CMD=(python -m src.cli train --config "${RESOLVED_CONFIG_PATH}")
+fi
 
-if [[ "${AUTO_RESUME}" == "1" ]]; then
+if [[ "${AUTO_RESUME}" == "1" && "${TRAIN_ENTRYPOINT}" == "legacy" ]]; then
   if latest_checkpoint="$(resolve_latest_checkpoint)"; then
     echo "==> Auto-resume enabled"
     echo "==> Resuming from ${latest_checkpoint}"
@@ -92,6 +97,10 @@ if [[ "${AUTO_RESUME}" == "1" ]]; then
   else
     echo "==> No checkpoint found, starting fresh"
   fi
+fi
+
+if [[ "${AUTO_RESUME}" == "1" && "${TRAIN_ENTRYPOINT}" != "legacy" ]]; then
+  TRAIN_CMD+=(--resume auto)
 fi
 
 TRAIN_CMD+=("${TRAIN_ARGS[@]}")

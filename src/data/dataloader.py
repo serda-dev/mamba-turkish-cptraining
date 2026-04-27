@@ -2,6 +2,7 @@
 
 import json
 import logging
+import bisect
 from pathlib import Path
 from typing import List, Optional
 
@@ -89,11 +90,17 @@ class MemmapPackedDataset(Dataset):
         # Load dtype from metadata if available
         meta_path = str(Path(memmap_path).parent / "metadata.json")
         dtype = np.uint16  # default
+        source_ids_path = None
+        source_id_to_name = {}
         if Path(meta_path).exists():
             with open(meta_path) as f:
                 meta = json.load(f)
                 dtype_str = meta.get("dtype", "uint16")
                 dtype = self._parse_dtype(dtype_str)
+                source_ids_path = meta.get("source_ids_path")
+                source_id_to_name = {
+                    int(k): v for k, v in meta.get("source_id_to_name", {}).items()
+                }
         
         self.data = np.memmap(
             memmap_path, dtype=dtype, mode='r',
@@ -101,6 +108,12 @@ class MemmapPackedDataset(Dataset):
         )
         self.num_chunks = num_chunks
         self.seq_len = seq_len
+        self.source_ids = None
+        self.source_id_to_name = source_id_to_name
+        if source_ids_path and Path(source_ids_path).exists():
+            self.source_ids = np.memmap(
+                source_ids_path, dtype=np.uint8, mode="r", shape=(num_chunks,)
+            )
         
         logger.info(
             f"MemmapPackedDataset: {num_chunks} chunks, seq_len={seq_len}, "
@@ -115,11 +128,92 @@ class MemmapPackedDataset(Dataset):
         tokens = self.data[idx]
         input_ids = torch.from_numpy(tokens.astype(np.int64))
         
-        return {
+        item = {
             "input_ids": input_ids,
             "labels": input_ids.clone(),  # causal LM: labels = inputs
             "attention_mask": torch.ones(self.seq_len, dtype=torch.long),
         }
+        if self.source_ids is not None:
+            source_id = int(self.source_ids[idx])
+            item["source_id"] = torch.tensor(source_id, dtype=torch.long)
+            item["source"] = self.source_id_to_name.get(source_id, str(source_id))
+        return item
+
+
+class ShardedMemmapPackedDataset(Dataset):
+    """Memory-mapped packed-token dataset split across multiple shard files."""
+
+    def __init__(self, manifest_path: str):
+        manifest_path = Path(manifest_path)
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            self.manifest = json.load(f)
+
+        if not self.manifest.get("complete"):
+            raise ValueError(f"Token cache is not complete: {manifest_path}")
+
+        self.manifest_path = manifest_path
+        self.cache_dir = manifest_path.parent
+        self.seq_len = int(self.manifest["seq_len"])
+        self.dtype = MemmapPackedDataset._parse_dtype(self.manifest.get("dtype", "uint16"))
+        self.shards = self.manifest.get("shards", [])
+        self.source_id_to_name = {
+            int(k): v for k, v in self.manifest.get("source_id_to_name", {}).items()
+        }
+        self.cumulative = []
+        total = 0
+        for shard in self.shards:
+            total += int(shard["num_chunks"])
+            self.cumulative.append(total)
+        self.num_chunks = total
+        self._open_shard_idx = None
+        self._open_data = None
+        self._open_source_ids = None
+
+        logger.info(
+            "ShardedMemmapPackedDataset: %s chunks, %s shard(s), seq_len=%s, dtype=%s",
+            self.num_chunks,
+            len(self.shards),
+            self.seq_len,
+            self.dtype,
+        )
+
+    def __len__(self) -> int:
+        return self.num_chunks
+
+    def _open_shard(self, shard_idx: int):
+        if self._open_shard_idx == shard_idx:
+            return
+        shard = self.shards[shard_idx]
+        num_chunks = int(shard["num_chunks"])
+        token_path = self.cache_dir / shard["path"]
+        source_path = self.cache_dir / shard["source_ids_path"]
+        self._open_data = np.memmap(
+            token_path, dtype=self.dtype, mode="r", shape=(num_chunks, self.seq_len)
+        )
+        self._open_source_ids = np.memmap(
+            source_path, dtype=np.uint8, mode="r", shape=(num_chunks,)
+        )
+        self._open_shard_idx = shard_idx
+
+    def __getitem__(self, idx: int) -> dict:
+        if idx < 0 or idx >= self.num_chunks:
+            raise IndexError(idx)
+        shard_idx = bisect.bisect_right(self.cumulative, idx)
+        shard_start = 0 if shard_idx == 0 else self.cumulative[shard_idx - 1]
+        local_idx = idx - shard_start
+        self._open_shard(shard_idx)
+
+        tokens = self._open_data[local_idx]
+        input_ids = torch.from_numpy(tokens.astype(np.int64))
+        source_id = int(self._open_source_ids[local_idx])
+        item = {
+            "input_ids": input_ids,
+            "labels": input_ids.clone(),
+            "attention_mask": torch.ones(self.seq_len, dtype=torch.long),
+            "source_id": torch.tensor(source_id, dtype=torch.long),
+            "source": self.source_id_to_name.get(source_id, str(source_id)),
+        }
+        return item
 
 
 def create_dataloader(

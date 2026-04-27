@@ -9,12 +9,13 @@ from typing import Any, Dict, Optional
 import torch
 from torch.amp import autocast
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LinearLR, SequentialLR, ConstantLR
+from torch.optim.lr_scheduler import LinearLR, SequentialLR, ConstantLR, CosineAnnealingLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from ..utils.time_budget import TimeBudget
 from ..utils.logging import MetricsLogger
+from .checkpoint import write_latest_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,10 @@ class Trainer:
         self.adam_epsilon = train_cfg.get("adam_epsilon", 1e-8)
         self.gradient_checkpointing = train_cfg.get("gradient_checkpointing", True)
         self.empty_cache_every_steps = train_cfg.get("empty_cache_every_steps", 0)
+        self.scheduler_name = train_cfg.get("scheduler", "constant").lower()
+        self.warmup_ratio = train_cfg.get("warmup_ratio")
+        self.phase_id = train_cfg.get("phase_id")
+        self.phase_name = train_cfg.get("phase_name")
         
         # Checkpointing config
         ckpt_cfg = config.get("checkpointing", {})
@@ -75,7 +80,9 @@ class Trainer:
         # Sequence length for tokens/sec calculation
         data_cfg = config.get("data", {})
         self.seq_len = data_cfg.get("seq_len", 1024)
+        self.seq_len = train_cfg.get("seq_len", self.seq_len)
         self.micro_batch_size = train_cfg.get("micro_batch_size", 1)
+        self.world_size = int(os.environ.get("WORLD_SIZE", "1"))
         
         # Device
         self.device = next(model.parameters()).device
@@ -89,9 +96,14 @@ class Trainer:
             logger.info("Model config override: use_cache=False for training")
         
         # Setup directories
-        self.checkpoint_dir = self.output_dir / "checkpoints"
-        self.log_dir = self.output_dir / "logs"
+        checkpoint_root = ckpt_cfg.get("checkpoint_dir")
+        self.checkpoint_root = Path(checkpoint_root) if checkpoint_root else self.output_dir / "checkpoints"
+        self.checkpoint_dir = self.checkpoint_root
+        if self.phase_id is not None:
+            self.checkpoint_dir = self.checkpoint_root / f"phase_{int(self.phase_id)}"
+        self.log_dir = Path(log_cfg.get("log_dir")) if log_cfg.get("log_dir") else self.output_dir / "logs"
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_root.mkdir(parents=True, exist_ok=True)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize components
@@ -103,6 +115,8 @@ class Trainer:
         # Training state
         self.global_step = 0
         self.tokens_seen = 0
+        self.source_sample_counts: Dict[str, int] = {}
+        self.source_token_counts: Dict[str, int] = {}
         self.start_time = None
         
         # Resume from checkpoint if provided
@@ -124,6 +138,8 @@ class Trainer:
         # Restore training state
         self.global_step = state.get("step", 0)
         self.tokens_seen = state.get("tokens_seen", 0)
+        self.source_sample_counts = state.get("source_sample_counts", {})
+        self.source_token_counts = state.get("source_token_counts", {})
         
         # Restore optimizer state
         if "optimizer_state_dict" in state:
@@ -199,26 +215,45 @@ class Trainer:
     
     def _setup_scheduler(self):
         """Setup learning rate scheduler with warmup."""
-        # Linear warmup then constant
+        if self.warmup_ratio is not None:
+            self.warmup_steps = int(max(0, self.max_steps * float(self.warmup_ratio)))
+
+        if self.warmup_steps <= 0:
+            self.warmup_steps = 1
+
         warmup_scheduler = LinearLR(
             self.optimizer,
             start_factor=0.1,
             end_factor=1.0,
             total_iters=self.warmup_steps,
         )
-        constant_scheduler = ConstantLR(
-            self.optimizer,
-            factor=1.0,
-            total_iters=self.max_steps - self.warmup_steps,
-        )
+        remaining_steps = max(1, self.max_steps - self.warmup_steps)
+        if self.scheduler_name == "cosine":
+            main_scheduler = CosineAnnealingLR(
+                self.optimizer,
+                T_max=remaining_steps,
+                eta_min=0.0,
+            )
+        elif self.scheduler_name in ("constant", "linear_constant"):
+            main_scheduler = ConstantLR(
+                self.optimizer,
+                factor=1.0,
+                total_iters=remaining_steps,
+            )
+        else:
+            raise ValueError(f"Unsupported scheduler: {self.scheduler_name}")
         
         self.scheduler = SequentialLR(
             self.optimizer,
-            schedulers=[warmup_scheduler, constant_scheduler],
+            schedulers=[warmup_scheduler, main_scheduler],
             milestones=[self.warmup_steps],
         )
         
-        logger.info(f"Scheduler: Linear warmup for {self.warmup_steps} steps")
+        logger.info(
+            "Scheduler: %s with linear warmup for %s steps",
+            self.scheduler_name,
+            self.warmup_steps,
+        )
     
     def _setup_scaler(self):
         """Setup dtype for mixed precision (bf16 doesn't need GradScaler)."""
@@ -274,12 +309,25 @@ class Trainer:
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
             "tokens_seen": self.tokens_seen,
+            "phase": self.phase_id,
+            "phase_name": self.phase_name,
+            "source_sample_counts": self.source_sample_counts,
+            "source_token_counts": self.source_token_counts,
         }
         if self.use_grad_scaler:
             state["scaler_state_dict"] = self.scaler.state_dict()
         
         torch.save(state, ckpt_path / "training_state.pt")
         
+        latest_metadata = {
+            "latest_checkpoint": str(ckpt_path),
+            "phase": self.phase_id,
+            "phase_name": self.phase_name,
+            "step": step,
+            "tokens_seen": self.tokens_seen,
+        }
+        write_latest_metadata(str(self.checkpoint_root), latest_metadata)
+
         # Cleanup old checkpoints
         if not is_final:
             self._cleanup_checkpoints()
@@ -291,6 +339,9 @@ class Trainer:
             if d.is_dir() and d.name.startswith("step_")
         ], key=lambda x: int(x.name.split("_")[1]))
         
+        if self.save_total_limit is None:
+            return
+
         while len(checkpoints) > self.save_total_limit:
             old_ckpt = checkpoints.pop(0)
             logger.info(f"Removing old checkpoint: {old_ckpt}")
@@ -307,9 +358,17 @@ class Trainer:
         logger.info("=" * 60)
         logger.info("Starting training")
         logger.info(f"  Max steps: {self.max_steps}")
+        if self.phase_id is not None:
+            logger.info(f"  Phase: {self.phase_id} ({self.phase_name})")
         logger.info(f"  Time budget: {self.time_budget_seconds}s ({self.time_budget_seconds/3600:.1f}h)")
         logger.info(f"  Gradient accumulation: {self.gradient_accumulation_steps}")
-        logger.info(f"  Effective batch size: {self.micro_batch_size * self.gradient_accumulation_steps}")
+        effective_samples = self.micro_batch_size * self.gradient_accumulation_steps * self.world_size
+        effective_tokens = self.seq_len * effective_samples
+        logger.info(f"  seq_len: {self.seq_len}")
+        logger.info(f"  micro_batch_size: {self.micro_batch_size}")
+        logger.info(f"  world_size: {self.world_size}")
+        logger.info(f"  Effective global batch samples: {effective_samples}")
+        logger.info(f"  Effective global batch tokens: {effective_tokens:,}")
         logger.info("=" * 60)
         
         self.model.train()
@@ -347,6 +406,7 @@ class Trainer:
             input_ids = batch["input_ids"].to(self.device)
             labels = batch["labels"].to(self.device)
             attention_mask = batch["attention_mask"].to(self.device)
+            source_names = batch.get("source")
             
             # Forward pass with mixed precision
             if self.amp_torch_dtype is not None:
@@ -374,6 +434,14 @@ class Trainer:
             accumulated_loss += loss.item()
             accumulation_count += 1
             self.tokens_seen += input_ids.numel()
+            if source_names is not None:
+                if isinstance(source_names, str):
+                    source_names = [source_names]
+                for source_name in source_names:
+                    self.source_sample_counts[source_name] = self.source_sample_counts.get(source_name, 0) + 1
+                    self.source_token_counts[source_name] = (
+                        self.source_token_counts.get(source_name, 0) + self.seq_len
+                    )
             
             # Gradient accumulation step
             if accumulation_count >= self.gradient_accumulation_steps:
@@ -419,17 +487,32 @@ class Trainer:
                     time_remaining = max(0, self.time_budget_seconds - elapsed)
                     
                     gpu_mem = self._get_gpu_memory()
+                    gpu_reserved = torch.cuda.memory_reserved() / 1e9 if torch.cuda.is_available() else None
+                    tr_tokens = self.source_token_counts.get("turkish", 0)
+                    en_tokens = self.source_token_counts.get("english", 0)
+                    actual_tr_ratio = tr_tokens / (tr_tokens + en_tokens) if (tr_tokens + en_tokens) else None
                     
                     metrics = {
                         "step": self.global_step,
+                        "phase": self.phase_id,
+                        "phase_name": self.phase_name,
                         "loss": accumulated_loss,
                         "lr": self.scheduler.get_last_lr()[0],
                         "tokens_per_sec": tokens_per_sec,
+                        "samples_per_sec": (
+                            self.micro_batch_size * self.gradient_accumulation_steps / step_time
+                        ),
                         "step_time": step_time,
                         "gpu_memory_gb": gpu_mem,
+                        "gpu_memory_reserved_gb": gpu_reserved,
                         "elapsed_seconds": elapsed,
                         "eta_seconds": eta_seconds,
                         "time_remaining_seconds": time_remaining,
+                        "turkish_samples": self.source_sample_counts.get("turkish", 0),
+                        "english_samples": self.source_sample_counts.get("english", 0),
+                        "turkish_tokens": tr_tokens,
+                        "english_tokens": en_tokens,
+                        "actual_tr_ratio": actual_tr_ratio,
                     }
                     
                     self.metrics_logger.log(metrics)
@@ -468,6 +551,10 @@ class Trainer:
             "total_tokens": self.tokens_seen,
             "total_time_seconds": total_time,
             "stop_reason": stop_reason,
+            "phase": self.phase_id,
+            "phase_name": self.phase_name,
+            "source_sample_counts": self.source_sample_counts,
+            "source_token_counts": self.source_token_counts,
         }
         
         logger.info("=" * 60)

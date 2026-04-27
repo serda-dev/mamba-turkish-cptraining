@@ -1,0 +1,149 @@
+project:
+  name: jamba2-3b-turkish-cpt
+  seed: 42
+
+model:
+  base_model: "ai21labs/AI21-Jamba2-3B"
+  tokenizer: "./customtokenizer"
+  trust_remote_code: true
+  dtype: bf16
+  attn_implementation: "sdpa"
+  use_mamba_kernels: true
+  use_cache: false
+
+paths:
+  data_dir: "/data"
+  cache_dir: "/cache"
+  checkpoint_dir: "/checkpoints"
+  log_dir: "/logs"
+  manifest_dir: "artifacts/dataset_manifests"
+
+training:
+  mode: four_phase_curriculum
+  seq_len: 1024
+  micro_batch_size: 1
+  gradient_accumulation_steps: 2048
+  checkpoint_every_steps: 100
+  resume: auto
+  scheduler: cosine
+  dataloader_num_workers: 2
+  save_optimizer_state: true
+  save_scheduler_state: true
+  max_steps: 10000
+  time_budget_seconds: 432000
+  max_grad_norm: 1.0
+  gradient_checkpointing: true
+  mixed_precision: true
+  amp_dtype: bfloat16
+  optimizer: adamw_8bit
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  empty_cache_every_steps: 50
+  global_batch_tokens_target: "2000000-4000000"
+
+checkpointing:
+  checkpoint_every_steps: 100
+  save_total_limit: null
+  save_final: true
+
+logging:
+  log_every_steps: 10
+  log_json: true
+
+token_cache:
+  batch_size: 1024
+  chunks_per_shard: 8192
+  reuse_if_complete: true
+
+datasets:
+  turkish:
+    repo: "MRBeDev/MC4veOSCARTekrarsizBirlestirilmis"
+    file_pattern: "paket_*/parca_*.jsonl.gz"
+    text_column: "text"
+    min_text_length: 50
+    strip_legacy_endoftext: true
+    total_partitions: 4
+    target_total_gb: 120
+    streaming: true
+    local_root: null
+
+  english:
+    fineweb_edu:
+      repo: "HuggingFaceFW/fineweb-edu"
+      name: "HuggingFaceFW/fineweb-edu"
+      split: "train"
+      text_column: "text"
+      score_column: "score"
+    openwebmath:
+      repo: "open-web-math/open-web-math"
+      name: "open-web-math/open-web-math"
+      split: "train"
+      text_column: "text"
+    stack_python:
+      repo: "bigcode/starcoderdata"
+      name: "bigcode/starcoderdata"
+      data_dir: "python"
+      split: "train"
+      text_column: "content"
+
+phases:
+  - id: 1
+    name: "turkish_bridge_fineweb_edu_4"
+    turkish_partition: 1
+    turkish_target_gb: 30
+    english_dataset: "fineweb_edu"
+    english_filter:
+      score_gte: 4.0
+    english_target_gb: 10
+    mix:
+      turkish_ratio: 0.75
+      english_ratio: 0.25
+    optimizer:
+      learning_rate: 2.0e-4
+      warmup_ratio: 0.08
+      weight_decay: 0.1
+
+  - id: 2
+    name: "high_quality_transfer_fineweb_edu_45"
+    turkish_partition: 2
+    turkish_target_gb: 30
+    english_dataset: "fineweb_edu"
+    english_filter:
+      score_gte: 4.5
+    english_target_gb: 10
+    mix:
+      turkish_ratio: 0.75
+      english_ratio: 0.25
+    optimizer:
+      learning_rate: 1.5e-4
+      warmup_ratio: 0.06
+      weight_decay: 0.1
+
+  - id: 3
+    name: "reasoning_preservation_openwebmath"
+    turkish_partition: 3
+    turkish_target_gb: 30
+    english_dataset: "openwebmath"
+    english_target_gb: 10
+    mix:
+      turkish_ratio: 0.75
+      english_ratio: 0.25
+    optimizer:
+      learning_rate: 1.0e-4
+      warmup_ratio: 0.05
+      weight_decay: 0.1
+
+  - id: 4
+    name: "annealing_stack_python"
+    turkish_partition: 4
+    turkish_target_gb: 30
+    english_dataset: "stack_python"
+    english_target_gb: 10
+    mix:
+      turkish_ratio: 0.75
+      english_ratio: 0.25
+    optimizer:
+      learning_rate: 5.0e-5
+      warmup_ratio: 0.03
+      weight_decay: 0.1
