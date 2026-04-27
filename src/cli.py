@@ -7,8 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
-import torch
-
 from .config import (
     calculate_global_batch,
     get_checkpoint_dir,
@@ -20,12 +18,7 @@ from .config import (
     phase_training_config,
     save_yaml_config,
 )
-from .data import (
-    ShardedMemmapPackedDataset,
-    create_dataloader,
-    pack_and_tokenize_to_sharded_cache,
-    token_cache_is_complete,
-)
+from .data import pack_and_tokenize_to_sharded_cache, token_cache_is_complete
 from .data.curriculum import (
     iter_english_texts,
     iter_turkish_texts,
@@ -34,16 +27,47 @@ from .data.curriculum import (
 )
 from .data.mixing import weighted_mix_texts
 from .data.preprocess import clean_text, strip_legacy_end_markers
-from .model import load_model, load_tokenizer
-from .train import Trainer
 from .train.checkpoint import find_latest_checkpoint, read_latest_metadata
 from .utils import check_environment, setup_logging
 
 logger = logging.getLogger(__name__)
 
 
+FALLBACK_JAMBA_CHAT_TEMPLATE = """{% if bos_token is defined and bos_token is not none %}{{ bos_token }}{% endif %}{% for message in messages %}{% if message.role in ['system', 'user', 'assistant'] %}{{ '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>\\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\\n' }}{% endif %}"""
+
+
+def load_tokenizer_for_cli(tokenizer_name_or_path: str):
+    """Load tokenizer without importing torch, so VPS preprocessing stays CPU-only."""
+    from transformers import AutoTokenizer
+
+    logger.info("Loading tokenizer: %s", tokenizer_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
+            logger.info("Tokenizer had no pad token, reusing eos token as pad")
+        else:
+            raise ValueError("Tokenizer has neither pad_token nor eos_token")
+
+    added_vocab = tokenizer.get_added_vocab()
+    has_jamba_chat_tokens = "<|im_start|>" in added_vocab and "<|im_end|>" in added_vocab
+    if not getattr(tokenizer, "chat_template", None) and has_jamba_chat_tokens:
+        tokenizer.chat_template = FALLBACK_JAMBA_CHAT_TEMPLATE
+        logger.info("Tokenizer had no chat template, injecting Jamba-compatible fallback template")
+
+    logger.info(
+        "Tokenizer loaded: vocab_size=%s, pad_token_id=%s, eos_token_id=%s, chat_template=%s",
+        tokenizer.vocab_size,
+        tokenizer.pad_token_id,
+        tokenizer.eos_token_id,
+        "yes" if getattr(tokenizer, "chat_template", None) else "no",
+    )
+    return tokenizer
+
+
 def set_seed(seed: int, deterministic: bool = False) -> None:
     import random
+    import torch
 
     random.seed(seed)
     try:
@@ -184,6 +208,8 @@ def build_phase_dataloader(
     phase_manifest: Dict[str, Any],
     tokenizer,
 ) -> tuple[Any, int]:
+    from .data import ShardedMemmapPackedDataset, create_dataloader
+
     cache_dir = phase_token_cache_dir(config, int(phase["id"]))
     seq_len = get_seq_len(config)
 
@@ -315,7 +341,7 @@ def command_prepare_token_cache(args: argparse.Namespace) -> int:
         or model_cfg.get("base_model")
         or model_cfg.get("name")
     )
-    tokenizer = load_tokenizer(tokenizer_path)
+    tokenizer = load_tokenizer_for_cli(tokenizer_path)
 
     selected_phase_ids = phase_ids(config, args.phase)
     if not selected_phase_ids:
@@ -358,6 +384,10 @@ def resolve_resume_checkpoint(config: Dict[str, Any], resume: Optional[str], pha
 
 
 def command_train(args: argparse.Namespace) -> int:
+    import torch
+    from .model import load_model
+    from .train import Trainer
+
     config = apply_runtime_paths(load_yaml_config(args.config))
     setup_from_config(config)
     logger.info("Training mode: %s", get_training_mode(config))
@@ -377,7 +407,7 @@ def command_train(args: argparse.Namespace) -> int:
 
     model_cfg = config.get("model", {})
     tokenizer_path = model_cfg.get("tokenizer") or config.get("tokenizer", {}).get("path") or model_cfg.get("base_model") or model_cfg.get("name")
-    tokenizer = load_tokenizer(tokenizer_path)
+    tokenizer = load_tokenizer_for_cli(tokenizer_path)
 
     selected_phase_ids = phase_ids(config, args.phase)
     if not selected_phase_ids:

@@ -152,7 +152,7 @@ On the VPS:
 git clone <YOUR_REPO_URL> mamba-cpt-tr
 cd mamba-cpt-tr
 conda activate tr_mamba_cpt
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-new.txt
 export HF_TOKEN=hf_xxx
 export HF_HOME=/cache/hf
 export CACHE_DIR=/cache

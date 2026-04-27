@@ -8,8 +8,20 @@ from .tokenize_pack import (
     pack_and_tokenize_to_sharded_cache,
     token_cache_is_complete,
 )
-from .dataloader import PackedDataset, MemmapPackedDataset, ShardedMemmapPackedDataset, create_dataloader
 from .mixing import weighted_mix_texts
+
+
+def __getattr__(name):
+    if name in {
+        "PackedDataset",
+        "MemmapPackedDataset",
+        "ShardedMemmapPackedDataset",
+        "create_dataloader",
+    }:
+        from . import dataloader
+
+        return getattr(dataloader, name)
+    raise AttributeError(name)
 
 __all__ = [
     "read_jsonl_files",
