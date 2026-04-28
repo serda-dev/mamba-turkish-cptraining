@@ -87,6 +87,9 @@ def setup_from_config(config: Dict[str, Any]) -> None:
     log_dir = Path(get_log_dir(config))
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
+        probe = log_dir / ".write_test"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
     except PermissionError:
         log_dir = Path("logs")
         log_dir.mkdir(parents=True, exist_ok=True)

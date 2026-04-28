@@ -3,6 +3,7 @@
 import fnmatch
 import json
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,11 @@ def gb_to_bytes(value: Optional[float]) -> Optional[int]:
     return int(float(value) * 1024**3)
 
 
+def get_hf_token() -> Optional[str]:
+    """Return the Hugging Face token from common environment variable names."""
+    return os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
+
+
 def _matches(path: str, pattern: str) -> bool:
     return fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(Path(path).name, pattern)
 
@@ -43,7 +49,8 @@ def list_local_shards(local_root: str, file_pattern: str) -> List[ShardInfo]:
 
 
 def list_hf_dataset_shards(repo_id: str, file_pattern: str) -> List[ShardInfo]:
-    api = HfApi()
+    token = get_hf_token()
+    api = HfApi(token=token)
     shards: List[ShardInfo] = []
     try:
         for item in api.list_repo_tree(repo_id, repo_type="dataset", recursive=True):
@@ -206,6 +213,7 @@ def resolve_turkish_file_paths(phase_manifest: Dict[str, Any], cache_dir: str) -
                 filename=file_path,
                 cache_dir=cache_dir,
                 resume_download=True,
+                token=get_hf_token(),
             )
             for file_path in files
         ]
@@ -276,6 +284,9 @@ def iter_english_texts(phase: Dict[str, Any], config: Dict[str, Any]) -> Iterato
         subset = en_cfg.get("subset")
         split = en_cfg.get("split", "train")
         load_kwargs = {"split": split, "streaming": True}
+        token = get_hf_token()
+        if token:
+            load_kwargs["token"] = token
         if en_cfg.get("data_dir"):
             load_kwargs["data_dir"] = en_cfg["data_dir"]
         iterator = load_dataset(dataset_name, subset, **load_kwargs)
