@@ -284,20 +284,21 @@ def pack_and_tokenize_to_sharded_cache(
             source_id_to_name[new_id] = source_name
         return source_name_to_id[source_name]
 
-    def append_ready_chunks() -> None:
+    def emit_current_chunk() -> None:
         nonlocal buffer, source_buffer, total_chunks
-        while len(buffer) >= seq_len:
-            current_chunks.append(np.array(buffer[:seq_len], dtype=dtype))
-            counts = Counter(source_buffer[:seq_len])
-            majority_source_id = counts.most_common(1)[0][0]
-            current_source_ids.append(majority_source_id)
-            source_name = source_id_to_name.get(majority_source_id, "unknown")
-            source_chunk_counts[source_name] += 1
-            for chunk_source_id, count in counts.items():
-                source_token_counts[source_id_to_name.get(chunk_source_id, "unknown")] += count
-            total_chunks += 1
-            buffer = buffer[seq_len:]
-            source_buffer = source_buffer[seq_len:]
+        if len(buffer) != seq_len:
+            return
+        current_chunks.append(np.array(buffer, dtype=dtype))
+        counts = Counter(source_buffer)
+        majority_source_id = counts.most_common(1)[0][0]
+        current_source_ids.append(majority_source_id)
+        source_name = source_id_to_name.get(majority_source_id, "unknown")
+        source_chunk_counts[source_name] += 1
+        for chunk_source_id, count in counts.items():
+            source_token_counts[source_id_to_name.get(chunk_source_id, "unknown")] += count
+        total_chunks += 1
+        buffer = []
+        source_buffer = []
 
     def flush_shard() -> None:
         nonlocal current_chunks, current_source_ids, next_shard_idx
@@ -342,6 +343,19 @@ def pack_and_tokenize_to_sharded_cache(
             texts_processed,
         )
 
+    def append_sequence(token_ids: list[int], source_id: int) -> None:
+        if not token_ids:
+            return
+        sequence = token_ids + [eos_token_id]
+        offset = 0
+        while offset < len(sequence):
+            remaining = seq_len - len(buffer)
+            take = min(remaining, len(sequence) - offset)
+            buffer.extend(sequence[offset : offset + take])
+            source_buffer.extend([source_id] * take)
+            offset += take
+            emit_current_chunk()
+
     batch_items = []
     items_iter = tqdm(texts, desc="Batch tokenizing", disable=not show_progress, initial=texts_processed)
 
@@ -366,11 +380,8 @@ def pack_and_tokenize_to_sharded_cache(
             if not token_ids:
                 continue
             source_id = source_id_for(source)
-            buffer.extend(token_ids)
-            buffer.append(eos_token_id)
-            source_buffer.extend([source_id] * (len(token_ids) + 1))
             texts_processed += 1
-            append_ready_chunks()
+            append_sequence(token_ids, source_id)
             if len(current_chunks) >= chunks_per_shard:
                 flush_shard()
 
@@ -385,7 +396,7 @@ def pack_and_tokenize_to_sharded_cache(
         while len(buffer) < seq_len:
             buffer.append(pad_token_id)
             source_buffer.append(source_buffer[-1] if source_buffer else source_id_for("unknown"))
-        append_ready_chunks()
+        emit_current_chunk()
 
     flush_shard()
     manifest.update({

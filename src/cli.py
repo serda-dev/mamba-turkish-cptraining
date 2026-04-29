@@ -334,7 +334,13 @@ def command_prepare_token_cache(args: argparse.Namespace) -> int:
     setup_from_config(config)
     if args.tokenizers_parallelism is not None:
         os.environ["TOKENIZERS_PARALLELISM"] = args.tokenizers_parallelism
-    logger.info("Preparing token cache; TOKENIZERS_PARALLELISM=%s", os.environ.get("TOKENIZERS_PARALLELISM"))
+    else:
+        os.environ.setdefault("TOKENIZERS_PARALLELISM", "true")
+    logger.info(
+        "Preparing token cache; TOKENIZERS_PARALLELISM=%s RAYON_NUM_THREADS=%s",
+        os.environ.get("TOKENIZERS_PARALLELISM"),
+        os.environ.get("RAYON_NUM_THREADS"),
+    )
 
     manifest_dir = ensure_manifests(config)
     model_cfg = config.get("model", {})

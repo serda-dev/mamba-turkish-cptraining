@@ -95,10 +95,10 @@ phases:
     english_dataset: "fineweb_edu"
     english_filter:
       score_gte: 4.0
-    english_target_gb: 10
+    english_target_gb: 20
     mix:
-      turkish_ratio: 0.75
-      english_ratio: 0.25
+      turkish_ratio: 0.6
+      english_ratio: 0.4
     optimizer:
       learning_rate: 2.0e-4
       warmup_ratio: 0.08
