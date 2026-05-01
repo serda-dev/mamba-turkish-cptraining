@@ -4,6 +4,7 @@ fast_tokenize.py — Standalone, high-speed tokenization script for VPS.
 
 Bypasses the full CPT pipeline and directly tokenizes Turkish JSONL(.gz) files
 into the sharded token cache format consumed by ShardedMemmapPackedDataset.
+Optionally mixes in pre-downloaded English data at a configurable ratio.
 
 Key design choices:
   - Each .gz is fully extracted via native `gunzip` before reading (no Python gzip).
@@ -13,15 +14,20 @@ Key design choices:
     single manifest.json that is 100% compatible with pack_and_tokenize_to_sharded_cache.
   - No HuggingFace `datasets` library dependency.
 
-Usage:
+Usage (Turkish only):
     python3 scripts/fast_tokenize.py \\
-        --input-dir /mnt/volume-nbg1-1/cache/datasets--MRBeDev--MC4veOSCARTekrarsizBirlestirilmis/snapshots/11ad3e89c89f60a3e9bfa3ac727f02d7302a16e6 \\
+        --input-dir /path/to/turkish/data \\
+        --output-dir ./cache/token_cache/phase_2 \\
+        --tokenizer ./customtokenizer
+
+Usage (Turkish + English mix):
+    python3 scripts/fast_tokenize.py \\
+        --input-dir /path/to/turkish/data \\
         --output-dir ./cache/token_cache/phase_2 \\
         --tokenizer ./customtokenizer \\
-        --file-pattern "paket_*/parca_*.jsonl.gz" \\
-        --seq-len 1024 \\
-        --workers 6 \\
-        --batch-size 4096
+        --english-dir ./cache/english_data/phase_2 \\
+        --english-ratio 0.25 \\
+        --english-text-field text
 
 All arguments have sensible defaults matching your project config.
 """
@@ -164,7 +170,7 @@ def process_single_file(args: tuple) -> dict:
 
     Returns a dict with shard metadata for the main process to merge.
     """
-    file_path, output_dir, shard_offset, text_field = args
+    file_path, output_dir, shard_offset, text_field, source_id = args
     global _tokenizer, _seq_len, _batch_size
 
     tokenizer = _tokenizer
@@ -202,8 +208,7 @@ def process_single_file(args: tuple) -> dict:
         all_chunks = np.stack(chunks)
         with open(shard_path, "wb") as f:
             f.write(all_chunks.tobytes())
-        # All source ids are "turkish" = 1
-        np.array([1] * len(chunks), dtype=np.uint8).tofile(source_path)
+        np.array([source_id] * len(chunks), dtype=np.uint8).tofile(source_path)
         shard = {
             "path": shard_name,
             "source_ids_path": source_name,
@@ -277,6 +282,7 @@ def process_single_file(args: tuple) -> dict:
     )
     return {
         "file": file_path,
+        "source_id": source_id,
         "texts_processed": texts_processed,
         "total_chunks": total_chunks,
         "shards": shards_written,
@@ -301,7 +307,7 @@ def find_files(input_dir: str, file_pattern: str) -> List[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Fast standalone tokenizer for CPT data")
-    parser.add_argument("--input-dir", required=True, help="Root dir with JSONL(.gz) files")
+    parser.add_argument("--input-dir", required=True, help="Root dir with Turkish JSONL(.gz) files")
     parser.add_argument("--output-dir", required=True, help="Output dir for token cache shards")
     parser.add_argument("--tokenizer", default="./customtokenizer", help="Tokenizer path")
     parser.add_argument("--file-pattern", default="paket_*/parca_*.jsonl.gz")
@@ -311,29 +317,53 @@ def main():
     parser.add_argument("--workers", type=int, default=6, help="Number of parallel workers")
     parser.add_argument("--shard-offset", type=int, default=0, help="Starting shard index")
     parser.add_argument("--limit-files", type=int, default=None, help="Process only first N files (for testing)")
+    # English mixing
+    parser.add_argument("--english-dir", default=None, help="Dir with pre-downloaded English JSONL files (from download_english.py)")
+    parser.add_argument("--english-ratio", type=float, default=0.25, help="Target English ratio (default 0.25 = 25%%)")
+    parser.add_argument("--english-text-field", default="text", help="Text field name in English JSONL files")
+    parser.add_argument("--english-file-pattern", default="shard_*.jsonl", help="File pattern for English JSONL files")
     args = parser.parse_args()
 
-    files = find_files(args.input_dir, args.file_pattern)
-    if not files:
-        logger.error("No files found matching '%s' in '%s'", args.file_pattern, args.input_dir)
+    # ── Discover Turkish files ────────────────────────────────────────────
+    tr_files = find_files(args.input_dir, args.file_pattern)
+    if not tr_files:
+        logger.error("No Turkish files found matching '%s' in '%s'", args.file_pattern, args.input_dir)
         sys.exit(1)
 
     if args.limit_files:
-        files = files[: args.limit_files]
+        tr_files = tr_files[: args.limit_files]
 
-    logger.info("Found %d files to process", len(files))
+    # ── Discover English files ────────────────────────────────────────────
+    en_files = []
+    if args.english_dir:
+        en_files = find_files(args.english_dir, args.english_file_pattern)
+        if not en_files:
+            logger.warning("No English files found in '%s' with pattern '%s'", args.english_dir, args.english_file_pattern)
+        else:
+            logger.info("Found %d English files in %s", len(en_files), args.english_dir)
+
+    total_files = len(tr_files) + len(en_files)
+    logger.info("Found %d Turkish + %d English = %d total files", len(tr_files), len(en_files), total_files)
     logger.info("Output dir: %s", args.output_dir)
     logger.info("Workers: %d | batch_size: %d | seq_len: %d", args.workers, args.batch_size, args.seq_len)
+    if en_files:
+        logger.info("English ratio target: %.0f%%", args.english_ratio * 100)
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Pre-assign shard index ranges to each file so there are no collisions
-    ESTIMATED_SHARDS_PER_FILE = 200  # generous upper bound
+    # ── Build task list ───────────────────────────────────────────────────
+    # source_id: 1=turkish, 2=english
+    ESTIMATED_SHARDS_PER_FILE = 200
     tasks = []
-    for i, f in enumerate(files):
+    for i, f in enumerate(tr_files):
         shard_base = args.shard_offset + i * ESTIMATED_SHARDS_PER_FILE
-        tasks.append((f, args.output_dir, shard_base, args.text_field))
+        tasks.append((f, args.output_dir, shard_base, args.text_field, 1))  # source_id=1 turkish
+
+    en_shard_offset = args.shard_offset + len(tr_files) * ESTIMATED_SHARDS_PER_FILE
+    for i, f in enumerate(en_files):
+        shard_base = en_shard_offset + i * ESTIMATED_SHARDS_PER_FILE
+        tasks.append((f, args.output_dir, shard_base, args.english_text_field, 2))  # source_id=2 english
 
     t_start = time.time()
 
@@ -348,7 +378,7 @@ def main():
             logger.info(
                 "Progress: %d/%d files done (%d chunks so far)",
                 len(all_results),
-                len(files),
+                total_files,
                 sum(r["total_chunks"] for r in all_results),
             )
 
@@ -361,10 +391,28 @@ def main():
     all_shards = []
     total_texts = 0
     total_chunks = 0
+    tr_chunks = 0
+    en_chunks = 0
+    tr_texts = 0
+    en_texts = 0
     for r in sorted(all_results, key=lambda x: x["file"]):
         all_shards.extend(r["shards"])
         total_texts += r["texts_processed"]
         total_chunks += r["total_chunks"]
+        if r.get("source_id") == 2:
+            en_chunks += r["total_chunks"]
+            en_texts += r["texts_processed"]
+        else:
+            tr_chunks += r["total_chunks"]
+            tr_texts += r["texts_processed"]
+
+    source_id_to_name = {"1": "turkish"}
+    source_chunk_counts = {"turkish": tr_chunks}
+    source_token_counts = {"turkish": tr_chunks * args.seq_len}
+    if en_chunks > 0:
+        source_id_to_name["2"] = "english"
+        source_chunk_counts["english"] = en_chunks
+        source_token_counts["english"] = en_chunks * args.seq_len
 
     manifest = {
         "format": "sharded_token_cache_v1",
@@ -378,9 +426,9 @@ def main():
         "total_chunks": total_chunks,
         "total_tokens": total_chunks * args.seq_len,
         "shards": all_shards,
-        "source_id_to_name": {"1": "turkish"},
-        "source_chunk_counts": {"turkish": total_chunks},
-        "source_token_counts": {"turkish": total_chunks * args.seq_len},
+        "source_id_to_name": source_id_to_name,
+        "source_chunk_counts": source_chunk_counts,
+        "source_token_counts": source_token_counts,
         "pending_buffer": [],
         "pending_source_buffer": [],
     }
@@ -392,10 +440,12 @@ def main():
     tmp_manifest.replace(manifest_path)
 
     elapsed_total = time.time() - t_start
+    actual_en_ratio = en_chunks / total_chunks * 100 if total_chunks > 0 else 0
     logger.info("=" * 60)
     logger.info("ALL DONE")
-    logger.info("  Files processed: %d", len(files))
-    logger.info("  Texts processed: %d", total_texts)
+    logger.info("  Turkish files:   %d (%d texts → %d chunks)", len(tr_files), tr_texts, tr_chunks)
+    logger.info("  English files:   %d (%d texts → %d chunks)", len(en_files), en_texts, en_chunks)
+    logger.info("  English ratio:   %.1f%% (target: %.1f%%)", actual_en_ratio, args.english_ratio * 100)
     logger.info("  Total chunks:    %d", total_chunks)
     logger.info("  Total tokens:    %s", f"{total_chunks * args.seq_len:,}")
     logger.info("  Total shards:    %d", len(all_shards))
