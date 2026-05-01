@@ -357,12 +357,8 @@ def pack_and_tokenize_to_sharded_cache(
             offset += take
             emit_current_chunk()
 
-    batch_items = []
-    batch_chars = 0
     # Maximum 30 million characters per batch (~30MB raw text) to prevent RAM swap thrashing
     MAX_CHARS_PER_BATCH = 30_000_000
-    
-    items_iter = tqdm(texts, desc="Batch tokenizing", disable=not show_progress, initial=texts_processed)
 
     def process_batch(items: list[TextOrSource]) -> None:
         nonlocal texts_processed
@@ -402,17 +398,43 @@ def pack_and_tokenize_to_sharded_cache(
             if len(current_chunks) >= chunks_per_shard:
                 flush_shard()
 
-    for item in items_iter:
-        batch_items.append(item)
-        text, _ = _split_text_source(item)
-        batch_chars += len(text)
+    import queue
+    import threading
+
+    batch_queue = queue.Queue(maxsize=3)
+
+    def producer():
+        local_batch = []
+        local_chars = 0
+        try:
+            for item in texts:
+                local_batch.append(item)
+                text, _ = _split_text_source(item)
+                local_chars += len(text)
+                
+                if len(local_batch) >= batch_size or local_chars >= MAX_CHARS_PER_BATCH:
+                    batch_queue.put(local_batch)
+                    local_batch = []
+                    local_chars = 0
+            if local_batch:
+                batch_queue.put(local_batch)
+        finally:
+            batch_queue.put(None)
+
+    producer_thread = threading.Thread(target=producer, daemon=True)
+    producer_thread.start()
+
+    items_iter = tqdm(desc="Batch tokenizing", disable=not show_progress, initial=texts_processed)
+    
+    while True:
+        batch = batch_queue.get()
+        if batch is None:
+            break
+        process_batch(batch)
+        items_iter.update(len(batch))
         
-        if len(batch_items) >= batch_size or batch_chars >= MAX_CHARS_PER_BATCH:
-            process_batch(batch_items)
-            batch_items = []
-            batch_chars = 0
-            
-    process_batch(batch_items)
+    items_iter.close()
+    producer_thread.join()
 
     if buffer and len(buffer) >= seq_len // 2:
         while len(buffer) < seq_len:
