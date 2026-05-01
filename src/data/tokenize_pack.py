@@ -346,7 +346,8 @@ def pack_and_tokenize_to_sharded_cache(
     def append_sequence(token_ids: list[int], source_id: int) -> None:
         if not token_ids:
             return
-        sequence = token_ids + [eos_token_id]
+        token_ids.append(eos_token_id)
+        sequence = token_ids
         offset = 0
         while offset < len(sequence):
             remaining = seq_len - len(buffer)
@@ -357,6 +358,10 @@ def pack_and_tokenize_to_sharded_cache(
             emit_current_chunk()
 
     batch_items = []
+    batch_chars = 0
+    # Maximum 30 million characters per batch (~30MB raw text) to prevent RAM swap thrashing
+    MAX_CHARS_PER_BATCH = 30_000_000
+    
     items_iter = tqdm(texts, desc="Batch tokenizing", disable=not show_progress, initial=texts_processed)
 
     def process_batch(items: list[TextOrSource]) -> None:
@@ -376,7 +381,19 @@ def pack_and_tokenize_to_sharded_cache(
             truncation=False,
         )
         input_ids_batch = encoded["input_ids"]
-        for token_ids, source in zip(input_ids_batch, batch_sources):
+        
+        # Free memory of strings and tokenizer dictionary early
+        del batch_texts
+        del encoded
+        
+        for i in range(len(input_ids_batch)):
+            token_ids = input_ids_batch[i]
+            source = batch_sources[i]
+            
+            # Release reference to allow garbage collection of this token list
+            # once append_sequence is done processing it.
+            input_ids_batch[i] = None
+            
             if not token_ids:
                 continue
             source_id = source_id_for(source)
@@ -387,9 +404,14 @@ def pack_and_tokenize_to_sharded_cache(
 
     for item in items_iter:
         batch_items.append(item)
-        if len(batch_items) >= batch_size:
+        text, _ = _split_text_source(item)
+        batch_chars += len(text)
+        
+        if len(batch_items) >= batch_size or batch_chars >= MAX_CHARS_PER_BATCH:
             process_batch(batch_items)
             batch_items = []
+            batch_chars = 0
+            
     process_batch(batch_items)
 
     if buffer and len(buffer) >= seq_len // 2:
