@@ -9,11 +9,53 @@ from typing import Iterator, List, Optional, Union
 logger = logging.getLogger(__name__)
 
 
+class _TempFileWrapper:
+    def __init__(self, path: str):
+        self.path = path
+        self.f = open(path, "r", encoding="utf-8")
+    def __iter__(self):
+        return self
+    def __next__(self):
+        return next(self.f)
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.f.close()
+        import os
+        try:
+            os.remove(self.path)
+            logger.info(f"Removed temporary extracted file {self.path}")
+        except Exception as e:
+            logger.warning(f"Could not remove temp file {self.path}: {e}")
+
 def open_text_maybe_gzip(file_path: Union[str, Path]):
-    """Open plain JSONL or gzip-compressed JSONL as a text stream."""
+    """Open plain JSONL or gzip-compressed JSONL as a text stream.
+    For .gz files, extracts entirely to /tmp first to avoid Python gzip IO bottlenecks."""
     file_path = Path(file_path)
     if file_path.suffix == ".gz":
-        return gzip.open(file_path, "rt", encoding="utf-8")
+        import tempfile
+        import subprocess
+        import os
+        
+        logger.info(f"Extracting {file_path} entirely before processing...")
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".jsonl", dir="/tmp")
+        os.close(tmp_fd)
+        
+        try:
+            # Use native gunzip to extract to the temporary file
+            with open(tmp_path, "wb") as f_out:
+                subprocess.run(["gunzip", "-c", str(file_path)], stdout=f_out, check=True)
+            logger.info(f"Extraction complete to {tmp_path}. Reading...")
+            return _TempFileWrapper(tmp_path)
+        except Exception as e:
+            logger.error(f"Failed to extract {file_path}: {e}")
+            try:
+                os.remove(tmp_path)
+            except:
+                pass
+            # Fallback to python gzip
+            return gzip.open(file_path, "rt", encoding="utf-8")
+            
     return open(file_path, "r", encoding="utf-8")
 
 

@@ -105,8 +105,13 @@ def preprocess_with_sources(
 ) -> Iterator[Tuple[str, str]]:
     total = 0
     kept = 0
+    dropped_garbage = 0
+    MAX_TEXT_LENGTH = 1_000_000
     for text, source in items:
         total += 1
+        if len(text) > MAX_TEXT_LENGTH:
+            dropped_garbage += 1
+            continue
         if strip_legacy_markers:
             text = strip_legacy_end_markers(text)
         text = clean_text(text)
@@ -114,7 +119,7 @@ def preprocess_with_sources(
             continue
         kept += 1
         yield text, source
-    logger.info("Mixed preprocessing complete: kept %s/%s texts", kept, total)
+    logger.info("Mixed preprocessing complete: kept %s/%s texts (dropped %s huge garbage texts)", kept, total, dropped_garbage)
 
 
 def load_phase_manifest(manifest_dir: str, phase_id: int) -> Dict[str, Any]:
