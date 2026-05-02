@@ -20,7 +20,7 @@ Usage (Turkish only):
         --output-dir ./cache/token_cache/phase_2 \\
         --tokenizer ./customtokenizer
 
-Usage (Turkish + English mix):
+Usage (Turkish + single English source):
     python3 scripts/fast_tokenize.py \\
         --input-dir /path/to/turkish/data \\
         --output-dir ./cache/token_cache/phase_2 \\
@@ -29,6 +29,17 @@ Usage (Turkish + English mix):
         --english-ratio 0.25 \\
         --english-text-field text
 
+Usage (Turkish + multiple English sources with shuffled shards):
+    python3 scripts/fast_tokenize.py \\
+        --input-dir /path/to/turkish/data \\
+        --output-dir ./cache/token_cache/phase_3 \\
+        --tokenizer ./customtokenizer \\
+        --english-dir ./cache/english/fineweb_phase_3 \\
+        --english-dir ./cache/english/openwebmath_phase_3 \\
+        --english-weights 0.6,0.4 \\
+        --shuffle-shards \\
+        --seed 45
+
 All arguments have sensible defaults matching your project config.
 """
 
@@ -36,6 +47,7 @@ import argparse
 import glob
 import json
 import logging
+import random
 import os
 import re
 import subprocess
@@ -318,10 +330,20 @@ def main():
     parser.add_argument("--shard-offset", type=int, default=0, help="Starting shard index")
     parser.add_argument("--limit-files", type=int, default=None, help="Process only first N files (for testing)")
     # English mixing
-    parser.add_argument("--english-dir", default=None, help="Dir with pre-downloaded English JSONL files (from download_english.py)")
-    parser.add_argument("--english-ratio", type=float, default=0.25, help="Target English ratio (default 0.25 = 25%%)")
+    parser.add_argument("--english-dir", action="append", default=None,
+                        help="Dir with pre-downloaded English JSONL files. Can be specified multiple times.")
+    parser.add_argument("--english-ratio", type=float, default=0.25,
+                        help="Approximate English ratio — logged for reference only, not enforced at the token level (default 0.25 = 25%%).")
     parser.add_argument("--english-text-field", default="text", help="Text field name in English JSONL files")
     parser.add_argument("--english-file-pattern", default="shard_*.jsonl", help="File pattern for English JSONL files")
+    parser.add_argument("--english-weights", default=None,
+                        help="Comma-separated weights for each --english-dir (e.g. '0.6,0.4'). "
+                             "Approximate file-level selection — not exact token-level ratio control.")
+    # Shard ordering
+    parser.add_argument("--shuffle-shards", action="store_true",
+                        help="Deterministically shuffle the final manifest shard order to interleave Turkish/English.")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for --shuffle-shards (default: 42).")
     args = parser.parse_args()
 
     # ── Discover Turkish files ────────────────────────────────────────────
@@ -335,19 +357,62 @@ def main():
 
     # ── Discover English files ────────────────────────────────────────────
     en_files = []
-    if args.english_dir:
-        en_files = find_files(args.english_dir, args.english_file_pattern)
-        if not en_files:
-            logger.warning("No English files found in '%s' with pattern '%s'", args.english_dir, args.english_file_pattern)
+    english_dirs = args.english_dir or []  # action="append" gives list or None
+
+    if english_dirs:
+        # Parse optional weights
+        weights = None
+        if args.english_weights:
+            weights = [float(w.strip()) for w in args.english_weights.split(",")]
+            if len(weights) != len(english_dirs):
+                logger.error(
+                    "--english-weights has %d values but %d --english-dir arguments given",
+                    len(weights), len(english_dirs),
+                )
+                sys.exit(1)
+            # Normalise weights to sum to 1
+            wsum = sum(weights)
+            if wsum <= 0:
+                logger.error("--english-weights must sum to a positive value")
+                sys.exit(1)
+            weights = [w / wsum for w in weights]
+
+        # Collect files from each dir
+        per_dir_files = []
+        for edir in english_dirs:
+            dir_files = find_files(edir, args.english_file_pattern)
+            if not dir_files:
+                logger.warning("No English files found in '%s' with pattern '%s'", edir, args.english_file_pattern)
+            else:
+                logger.info("Found %d English files in %s", len(dir_files), edir)
+            per_dir_files.append(dir_files)
+
+        if weights:
+            # Approximate file-level weighted selection
+            total_en_available = sum(len(f) for f in per_dir_files)
+            for i, (dir_files, w) in enumerate(zip(per_dir_files, weights)):
+                n_select = max(1, int(round(w * total_en_available))) if dir_files else 0
+                n_select = min(n_select, len(dir_files))
+                selected = dir_files[:n_select]
+                en_files.extend(selected)
+                logger.info(
+                    "  english-dir[%d] weight=%.2f: selected %d/%d files",
+                    i, w, len(selected), len(dir_files),
+                )
         else:
-            logger.info("Found %d English files in %s", len(en_files), args.english_dir)
+            # No weights — include all files from all dirs
+            for dir_files in per_dir_files:
+                en_files.extend(dir_files)
 
     total_files = len(tr_files) + len(en_files)
     logger.info("Found %d Turkish + %d English = %d total files", len(tr_files), len(en_files), total_files)
     logger.info("Output dir: %s", args.output_dir)
     logger.info("Workers: %d | batch_size: %d | seq_len: %d", args.workers, args.batch_size, args.seq_len)
     if en_files:
-        logger.info("English ratio target: %.0f%%", args.english_ratio * 100)
+        logger.info(
+            "English ratio target: %.0f%% (approximate, logged only — not enforced at token level)",
+            args.english_ratio * 100,
+        )
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -406,6 +471,15 @@ def main():
             tr_chunks += r["total_chunks"]
             tr_texts += r["texts_processed"]
 
+    # ── Optional shard shuffling ──────────────────────────────────────────
+    if args.shuffle_shards:
+        rng = random.Random(args.seed)
+        rng.shuffle(all_shards)
+        logger.info(
+            "Shuffled %d shards with seed=%d (manifest order only, no files renamed)",
+            len(all_shards), args.seed,
+        )
+
     source_id_to_name = {"1": "turkish"}
     source_chunk_counts = {"turkish": tr_chunks}
     source_token_counts = {"turkish": tr_chunks * args.seq_len}
@@ -445,7 +519,7 @@ def main():
     logger.info("ALL DONE")
     logger.info("  Turkish files:   %d (%d texts → %d chunks)", len(tr_files), tr_texts, tr_chunks)
     logger.info("  English files:   %d (%d texts → %d chunks)", len(en_files), en_texts, en_chunks)
-    logger.info("  English ratio:   %.1f%% (target: %.1f%%)", actual_en_ratio, args.english_ratio * 100)
+    logger.info("  English ratio:   %.1f%% (target: %.1f%%, approximate)", actual_en_ratio, args.english_ratio * 100)
     logger.info("  Total chunks:    %d", total_chunks)
     logger.info("  Total tokens:    %s", f"{total_chunks * args.seq_len:,}")
     logger.info("  Total shards:    %d", len(all_shards))

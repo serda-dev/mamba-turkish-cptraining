@@ -3,25 +3,34 @@
 download_english.py — Download English datasets for each CPT phase to local JSONL files.
 
 Reads configs/cpt_4phase.yaml and for each phase:
-  - Streams the specified HuggingFace dataset
+  - Iterates over the phase's english_sources list (one or more datasets)
+  - Streams each HuggingFace dataset
   - Applies score filtering if configured (e.g. fineweb_edu score >= 4.5)
   - Writes texts to local JSONL shards (500MB per shard)
-  - Stops when english_target_gb is reached
-  - Supports resume: skips phases that already have enough data
+  - Stops each source when its target_gb is reached
+  - Supports resume: skips sources that already have enough data
 
-Output structure:
+Output structure (one subdirectory per English source):
     cache/english_data/
       phase_1/
-        shard_000000.jsonl
-        shard_000001.jsonl
-        progress.json
+        fineweb_edu/
+          shard_000000.jsonl
+          shard_000001.jsonl
+          progress.json
       phase_2/
-        ...
+        fineweb_edu/
+          ...
+      phase_3/
+        openwebmath/
+          ...
+        fineweb_edu/          # if a second source is added
+          ...
 
 Usage:
     python3 scripts/download_english.py --config configs/cpt_4phase.yaml
     python3 scripts/download_english.py --config configs/cpt_4phase.yaml --phase 2
-    python3 scripts/download_english.py --config configs/cpt_4phase.yaml --phase 2 --output-root ./cache/english_data
+    python3 scripts/download_english.py --config configs/cpt_4phase.yaml --phase 3 --source openwebmath
+    python3 scripts/download_english.py --config configs/cpt_4phase.yaml --output-root ./cache/english_data
 """
 
 import argparse
@@ -31,7 +40,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 logging.basicConfig(
     level=logging.INFO,
@@ -120,45 +129,83 @@ def stream_hf_dataset(
     logger.info("Stream ended: accepted=%d rejected=%d", accepted, rejected)
 
 
-def download_phase_english(
-    phase: dict,
-    english_datasets: dict,
-    output_dir: Path,
+# ── Resolve english_sources from phase config ────────────────────────────────
+
+
+def resolve_english_sources(phase: dict) -> List[dict]:
+    """Extract the list of english sources from a phase config.
+
+    Supports the new ``english_sources`` list format and falls back to the
+    legacy single-dataset format (``english_dataset`` + ``english_target_gb``
+    + ``english_filter``) for backward compatibility.
+
+    Returns a list of dicts, each with keys:
+      - dataset: str   (key into datasets.english)
+      - target_gb: float
+      - filter: dict or None  (e.g. {"score_gte": 4.0})
+    """
+    # New format: english_sources list
+    sources = phase.get("english_sources")
+    if sources:
+        result = []
+        for src in sources:
+            result.append({
+                "dataset": src["dataset"],
+                "target_gb": float(src.get("target_gb", 0)),
+                "filter": src.get("filter"),
+            })
+        return result
+
+    # Legacy format: single english_dataset
+    english_key = phase.get("english_dataset")
+    if english_key:
+        target_gb = float(phase.get("english_target_gb", 0))
+        en_filter = phase.get("english_filter")
+        return [{
+            "dataset": english_key,
+            "target_gb": target_gb,
+            "filter": en_filter,
+        }]
+
+    return []
+
+
+# ── Download a single source within a phase ──────────────────────────────────
+
+
+def download_single_source(
+    phase_id: int,
+    source: dict,
+    en_cfg: dict,
+    source_dir: Path,
     force: bool = False,
 ) -> dict:
-    """Download English data for a single phase."""
-    phase_id = int(phase["id"])
-    english_key = phase.get("english_dataset")
-    if not english_key:
-        logger.info("Phase %d has no English dataset, skipping", phase_id)
-        return {"phase": phase_id, "status": "no_english"}
+    """Download one English source for a phase into source_dir.
 
-    en_cfg = english_datasets.get(english_key, {})
-    if not en_cfg:
-        logger.error("Phase %d references unknown English dataset '%s'", phase_id, english_key)
-        return {"phase": phase_id, "status": "error", "error": f"Unknown dataset {english_key}"}
-
-    target_gb = float(phase.get("english_target_gb", 0))
+    Returns a result dict with status and progress info.
+    """
+    english_key = source["dataset"]
+    target_gb = source["target_gb"]
     target_bytes = int(target_gb * 1024 ** 3)
-    if target_bytes <= 0:
-        logger.info("Phase %d has english_target_gb=0, skipping", phase_id)
-        return {"phase": phase_id, "status": "zero_target"}
 
-    phase_dir = output_dir / f"phase_{phase_id}"
-    progress_path = phase_dir / "progress.json"
+    if target_bytes <= 0:
+        logger.info("Phase %d / %s: target_gb=0, skipping", phase_id, english_key)
+        return {"phase": phase_id, "dataset": english_key, "status": "zero_target"}
+
+    progress_path = source_dir / "progress.json"
 
     # Check if already complete
     progress = read_progress(progress_path)
     if progress and progress.get("complete") and not force:
         logger.info(
-            "Phase %d English data already complete: %.2f GB in %d shards",
-            phase_id,
+            "Phase %d / %s already complete: %.2f GB in %d shards",
+            phase_id, english_key,
             progress.get("total_bytes", 0) / 1024 ** 3,
             progress.get("shards_written", 0),
         )
-        return {"phase": phase_id, "status": "already_complete", **progress}
+        return {"phase": phase_id, "dataset": english_key, "status": "already_complete", **progress}
 
-    phase_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.mkdir(parents=True, exist_ok=True)
 
     # Resume support: count existing bytes
     existing_bytes = 0
@@ -171,11 +218,14 @@ def download_phase_english(
         if existing_bytes >= target_bytes:
             progress["complete"] = True
             write_progress(progress_path, progress)
-            logger.info("Phase %d already has enough data (%.2f GB)", phase_id, existing_bytes / 1024**3)
-            return {"phase": phase_id, "status": "already_complete", **progress}
+            logger.info(
+                "Phase %d / %s already has enough data (%.2f GB)",
+                phase_id, english_key, existing_bytes / 1024**3,
+            )
+            return {"phase": phase_id, "dataset": english_key, "status": "already_complete", **progress}
         logger.info(
-            "Phase %d resuming: %.2f/%.2f GB (%d shards so far)",
-            phase_id, existing_bytes / 1024**3, target_gb, existing_shards,
+            "Phase %d / %s resuming: %.2f/%.2f GB (%d shards so far)",
+            phase_id, english_key, existing_bytes / 1024**3, target_gb, existing_shards,
         )
 
     # Dataset config
@@ -185,14 +235,14 @@ def download_phase_english(
     data_dir = en_cfg.get("data_dir")
     text_column = en_cfg.get("text_column", "text")
     score_column = en_cfg.get("score_column")
-    score_gte = phase.get("english_filter", {}).get("score_gte")
+    score_gte = (source.get("filter") or {}).get("score_gte")
 
     logger.info("=" * 60)
-    logger.info("Phase %d: Downloading '%s'", phase_id, english_key)
+    logger.info("Phase %d / %s: Downloading", phase_id, english_key)
     logger.info("  Dataset: %s", dataset_name)
     logger.info("  Score filter: %s >= %s", score_column, score_gte)
     logger.info("  Target: %.1f GB", target_gb)
-    logger.info("  Output: %s", phase_dir)
+    logger.info("  Output: %s", source_dir)
     logger.info("=" * 60)
 
     # Stream and write
@@ -208,7 +258,7 @@ def download_phase_english(
         nonlocal shard_buffer, shard_bytes, shard_idx
         if not shard_buffer:
             return
-        shard_path = phase_dir / f"shard_{shard_idx:06d}.jsonl"
+        shard_path = source_dir / f"shard_{shard_idx:06d}.jsonl"
         with open(shard_path, "w", encoding="utf-8") as f:
             for line in shard_buffer:
                 f.write(line)
@@ -310,19 +360,93 @@ def download_phase_english(
     status = "complete" if is_complete else "partial"
     logger.info("=" * 60)
     logger.info(
-        "Phase %d %s: %.2f/%.2f GB | %d texts | %d shards | %.1f min",
-        phase_id, status, total_bytes / 1024**3, target_gb,
+        "Phase %d / %s %s: %.2f/%.2f GB | %d texts | %d shards | %.1f min",
+        phase_id, english_key, status, total_bytes / 1024**3, target_gb,
         total_texts, shard_idx, elapsed / 60,
     )
     logger.info("=" * 60)
 
-    return {"phase": phase_id, "status": status, **final_progress}
+    return {"phase": phase_id, "dataset": english_key, "status": status, **final_progress}
+
+
+# ── Download all sources for a phase ─────────────────────────────────────────
+
+
+def download_phase_english(
+    phase: dict,
+    english_datasets: dict,
+    output_dir: Path,
+    force: bool = False,
+    source_filter: Optional[str] = None,
+) -> List[dict]:
+    """Download English data for all sources of a single phase.
+
+    Each source is written to its own subdirectory under the phase folder:
+        output_dir/phase_{id}/{dataset_key}/
+
+    Args:
+        phase: Phase config dict from YAML.
+        english_datasets: The datasets.english section from YAML.
+        output_dir: Root output directory (e.g. ./cache/english_data).
+        force: Re-download even if already complete.
+        source_filter: If set, only download this specific source key.
+
+    Returns:
+        A list of result dicts, one per source.
+    """
+    phase_id = int(phase["id"])
+    sources = resolve_english_sources(phase)
+
+    if not sources:
+        logger.info("Phase %d has no English sources, skipping", phase_id)
+        return [{"phase": phase_id, "status": "no_english"}]
+
+    if source_filter:
+        sources = [s for s in sources if s["dataset"] == source_filter]
+        if not sources:
+            logger.error(
+                "Phase %d has no English source named '%s'", phase_id, source_filter,
+            )
+            return [{"phase": phase_id, "status": "error", "error": f"No source '{source_filter}'"}]
+
+    results = []
+    for source in sources:
+        english_key = source["dataset"]
+        en_cfg = english_datasets.get(english_key, {})
+        if not en_cfg:
+            logger.error(
+                "Phase %d references unknown English dataset '%s'", phase_id, english_key,
+            )
+            results.append({
+                "phase": phase_id, "dataset": english_key,
+                "status": "error", "error": f"Unknown dataset {english_key}",
+            })
+            continue
+
+        # Each source gets its own subdirectory
+        source_dir = output_dir / f"phase_{phase_id}" / english_key
+
+        result = download_single_source(
+            phase_id=phase_id,
+            source=source,
+            en_cfg=en_cfg,
+            source_dir=source_dir,
+            force=force,
+        )
+        results.append(result)
+
+    return results
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
 
 
 def main():
     parser = argparse.ArgumentParser(description="Download English datasets for CPT phases")
     parser.add_argument("--config", "-c", default="configs/cpt_4phase.yaml", help="Config YAML path")
     parser.add_argument("--phase", type=int, default=None, help="Download only this phase (default: all)")
+    parser.add_argument("--source", default=None,
+                        help="Download only this English source key within the phase (e.g. 'fineweb_edu')")
     parser.add_argument("--output-root", default="./cache/english_data", help="Output root directory")
     parser.add_argument("--force", action="store_true", help="Re-download even if already complete")
     args = parser.parse_args()
@@ -341,28 +465,35 @@ def main():
     logger.info("Config: %s", args.config)
     logger.info("Output root: %s", output_root)
     logger.info("Phases to download: %s", [int(p["id"]) for p in phases])
+    if args.source:
+        logger.info("Source filter: %s", args.source)
     logger.info("")
 
-    results = []
+    all_results = []
     for phase in phases:
-        result = download_phase_english(
+        results = download_phase_english(
             phase=phase,
             english_datasets=english_datasets,
             output_dir=output_root,
             force=args.force,
+            source_filter=args.source,
         )
-        results.append(result)
+        all_results.extend(results)
         logger.info("")
 
     # Summary
     logger.info("=" * 60)
     logger.info("DOWNLOAD SUMMARY")
-    for r in results:
+    for r in all_results:
+        gb = r.get("total_gb", 0)
+        if not gb and "total_bytes" in r:
+            gb = r["total_bytes"] / 1024**3
         logger.info(
-            "  Phase %d: %s (%.2f GB, %d texts)",
+            "  Phase %s / %s: %s (%.2f GB, %d texts)",
             r.get("phase", "?"),
+            r.get("dataset", "?"),
             r.get("status", "unknown"),
-            r.get("total_gb", r.get("total_bytes", 0) / 1024**3 if "total_bytes" in r else 0),
+            gb,
             r.get("texts_written", 0),
         )
     logger.info("=" * 60)
