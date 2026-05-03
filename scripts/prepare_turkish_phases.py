@@ -64,6 +64,7 @@ def discover_shards(root: Path, file_pattern: str) -> List[Tuple[Path, int]]:
 
     Results are sorted lexicographically by relative path for determinism.
     """
+    root_abs = root.absolute()
     pattern = str(root / file_pattern)
     matches = glob.glob(pattern, recursive=False)
     if not matches:
@@ -77,12 +78,15 @@ def discover_shards(root: Path, file_pattern: str) -> List[Tuple[Path, int]]:
 
     shards = []
     for m in matches:
-        p = Path(m).resolve()
+        # HF snapshots store files as symlinks to ../blobs. Do not resolve here:
+        # resolving would move the path outside the snapshot root and break
+        # relative phase layout creation.
+        p = Path(m).absolute()
         if p.is_file():
             shards.append((p, p.stat().st_size))
 
     # Sort by relative path from root for determinism
-    shards.sort(key=lambda x: str(x[0].relative_to(root.resolve())))
+    shards.sort(key=lambda x: str(x[0].relative_to(root_abs)))
     return shards
 
 
@@ -198,7 +202,7 @@ def create_phase_folders(
 
         if dry_run:
             for shard_path, size in bucket:
-                rel = shard_path.relative_to(root.resolve())
+                rel = shard_path.relative_to(root.absolute())
                 phase_entry["shards"].append({
                     "original_path": str(shard_path),
                     "local_path": str(rel),
@@ -210,7 +214,7 @@ def create_phase_folders(
         phase_dir.mkdir(parents=True, exist_ok=True)
 
         for shard_path, size in bucket:
-            rel = shard_path.relative_to(root.resolve())
+            rel = shard_path.relative_to(root.absolute())
             dest = phase_dir / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
 
