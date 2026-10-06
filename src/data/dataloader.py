@@ -41,10 +41,14 @@ class PackedDataset(Dataset):
         tokens = self.chunks[idx]
         input_ids = torch.tensor(tokens, dtype=torch.long)
         
+        valid = getattr(tokens, "valid_length", len(tokens))
+        attention_mask = (torch.arange(len(tokens)) < valid).long()
+        labels = input_ids.clone()
+        labels[valid:] = -100
         return {
             "input_ids": input_ids,
-            "labels": input_ids.clone(),  # causal LM: labels = inputs
-            "attention_mask": torch.ones_like(input_ids),
+            "labels": labels,
+            "attention_mask": attention_mask,
         }
 
 
@@ -91,6 +95,8 @@ class MemmapPackedDataset(Dataset):
         meta_path = str(Path(memmap_path).parent / "metadata.json")
         dtype = np.uint16  # default
         source_ids_path = None
+        valid_lengths_path = None
+        token_source_ids_path = None
         source_id_to_name = {}
         if Path(meta_path).exists():
             with open(meta_path) as f:
@@ -98,6 +104,8 @@ class MemmapPackedDataset(Dataset):
                 dtype_str = meta.get("dtype", "uint16")
                 dtype = self._parse_dtype(dtype_str)
                 source_ids_path = meta.get("source_ids_path")
+                valid_lengths_path = meta.get("valid_lengths_path")
+                token_source_ids_path = meta.get("token_source_ids_path")
                 source_id_to_name = {
                     int(k): v for k, v in meta.get("source_id_to_name", {}).items()
                 }
@@ -115,6 +123,11 @@ class MemmapPackedDataset(Dataset):
                 source_ids_path, dtype=np.uint8, mode="r", shape=(num_chunks,)
             )
         
+        self.valid_lengths = (np.memmap(valid_lengths_path, dtype=np.uint32, mode="r",
+                             shape=(num_chunks,)) if valid_lengths_path and num_chunks else None)
+        self.token_source_ids = (np.memmap(token_source_ids_path, dtype=np.uint8, mode="r",
+                                shape=(num_chunks, seq_len)) if token_source_ids_path and num_chunks else None)
+
         logger.info(
             f"MemmapPackedDataset: {num_chunks} chunks, seq_len={seq_len}, "
             f"dtype={dtype}, memmap file={memmap_path}"
@@ -133,6 +146,12 @@ class MemmapPackedDataset(Dataset):
             "labels": input_ids.clone(),  # causal LM: labels = inputs
             "attention_mask": torch.ones(self.seq_len, dtype=torch.long),
         }
+        if self.valid_lengths is not None:
+            valid = int(self.valid_lengths[idx])
+            item["attention_mask"][valid:] = 0
+            item["labels"][valid:] = -100
+        if self.token_source_ids is not None:
+            item["token_source_ids"] = torch.from_numpy(self.token_source_ids[idx].astype(np.int64))
         if self.source_ids is not None:
             source_id = int(self.source_ids[idx])
             item["source_id"] = torch.tensor(source_id, dtype=torch.long)
@@ -151,6 +170,9 @@ class ShardedMemmapPackedDataset(Dataset):
         if not self.manifest.get("complete"):
             raise ValueError(f"Token cache is not complete: {manifest_path}")
 
+        from .tokenize_pack import _validate_cache_shards
+        _validate_cache_shards(str(manifest_path.parent), self.manifest)
+
         self.manifest_path = manifest_path
         self.cache_dir = manifest_path.parent
         self.seq_len = int(self.manifest["seq_len"])
@@ -168,6 +190,8 @@ class ShardedMemmapPackedDataset(Dataset):
         self._open_shard_idx = None
         self._open_data = None
         self._open_source_ids = None
+        self._open_token_source_ids = None
+        self._open_valid_lengths = None
 
         logger.info(
             "ShardedMemmapPackedDataset: %s chunks, %s shard(s), seq_len=%s, dtype=%s",
@@ -193,6 +217,14 @@ class ShardedMemmapPackedDataset(Dataset):
         self._open_source_ids = np.memmap(
             source_path, dtype=np.uint8, mode="r", shape=(num_chunks,)
         )
+        self._open_token_source_ids = np.memmap(
+            self.cache_dir / shard["token_source_ids_path"], dtype=np.uint8,
+            mode="r", shape=(num_chunks, self.seq_len)
+        )
+        self._open_valid_lengths = np.memmap(
+            self.cache_dir / shard["valid_lengths_path"], dtype=np.uint32,
+            mode="r", shape=(num_chunks,)
+        )
         self._open_shard_idx = shard_idx
 
     def __getitem__(self, idx: int) -> dict:
@@ -206,10 +238,17 @@ class ShardedMemmapPackedDataset(Dataset):
         tokens = self._open_data[local_idx]
         input_ids = torch.from_numpy(tokens.astype(np.int64))
         source_id = int(self._open_source_ids[local_idx])
+        valid = int(self._open_valid_lengths[local_idx])
+        if not 0 < valid <= self.seq_len:
+            raise ValueError("Invalid packed sequence valid length")
+        attention_mask = torch.arange(self.seq_len) < valid
+        labels = input_ids.clone()
+        labels[~attention_mask] = -100
         item = {
             "input_ids": input_ids,
-            "labels": input_ids.clone(),
-            "attention_mask": torch.ones(self.seq_len, dtype=torch.long),
+            "labels": labels,
+            "attention_mask": attention_mask.long(),
+            "token_source_ids": torch.from_numpy(self._open_token_source_ids[local_idx].astype(np.int64)),
             "source_id": torch.tensor(source_id, dtype=torch.long),
             "source": self.source_id_to_name.get(source_id, str(source_id)),
         }
@@ -223,7 +262,7 @@ def create_dataloader(
     num_workers: int = 2,
     prefetch_factor: int = 2,
     pin_memory: bool = True,
-    drop_last: bool = True,
+    drop_last: bool = False,
 ) -> DataLoader:
     """
     Create DataLoader with optimized settings.

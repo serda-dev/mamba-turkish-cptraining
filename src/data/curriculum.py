@@ -115,6 +115,11 @@ def partition_shards(shards: List[ShardInfo], total_partitions: int = 4) -> Dict
 def create_turkish_partitions_manifest(config: Dict[str, Any]) -> Dict[str, Any]:
     datasets = config.get("datasets", {})
     tr_cfg = datasets.get("turkish", config.get("data", {}))
+    if tr_cfg.get("classified"):
+        return {"turkish_dataset_repo": tr_cfg["classified"].get("labels_repo"),
+                "source": {"type": "classified"}, "total_files": 0,
+                "partitions": {f"phase_{p['id']}": [] for p in config["phases"]},
+                "classified": tr_cfg["classified"]}
     repo = tr_cfg.get("repo") or tr_cfg.get("hf_dataset_id")
     local_root = tr_cfg.get("local_root") or tr_cfg.get("dataset_dir")
     pattern = tr_cfg.get("file_pattern", "paket_*/parca_*.jsonl.gz")
@@ -167,6 +172,7 @@ def write_phase_manifests(config: Dict[str, Any], turkish_manifest: Dict[str, An
             "turkish_files": turkish_manifest["partitions"].get(partition_key, []),
             "turkish_source": turkish_manifest.get("source", {}),
             "english_dataset": phase.get("english_dataset"),
+            "english_sources": phase.get("english_sources", []),
             "english_filter": phase.get("english_filter", {}),
             "target_tr_gb": phase.get("turkish_target_gb"),
             "target_en_gb": phase.get("english_target_gb"),
@@ -222,6 +228,18 @@ def resolve_turkish_file_paths(phase_manifest: Dict[str, Any], cache_dir: str) -
 
 def iter_turkish_texts(phase_manifest: Dict[str, Any], config: Dict[str, Any]) -> Iterator[str]:
     tr_cfg = config.get("datasets", {}).get("turkish", config.get("data", {}))
+    if tr_cfg.get("classified"):
+        from .classified import iter_classified_texts
+        split = config.get("token_cache", {}).get("split", "train")
+        if split != "train":
+            import copy
+            config = copy.deepcopy(config)
+            settings = config["datasets"]["turkish"]["classified"]
+            for key in ("audit_db", "manifest_path"):
+                path = Path(settings[key])
+                settings[key] = str(path.with_name(path.stem + "_" + split + path.suffix))
+        yield from iter_classified_texts(config, split=split)
+        return
     text_column = tr_cfg.get("text_column", tr_cfg.get("text_field", "text"))
     cache_dir = config.get("paths", {}).get("cache_dir", "./cache")
     file_paths = resolve_turkish_file_paths(phase_manifest, cache_dir)
@@ -236,7 +254,7 @@ def fineweb_score_accepts(row: Dict[str, Any], score_column: str = "score", scor
 
 
 def _iter_local_english(local_path: str, text_column: str, score_column: str, score_gte: Optional[float]) -> Iterator[str]:
-    for path in Path(local_path).rglob("*"):
+    for path in sorted(Path(local_path).rglob("*")):
         if path.is_file() and (path.name.endswith(".jsonl") or path.name.endswith(".jsonl.gz")):
             import json
             from .jsonl_reader import open_text_maybe_gzip
@@ -258,10 +276,25 @@ def _iter_local_english(local_path: str, text_column: str, score_column: str, sc
 
 def iter_english_texts(phase: Dict[str, Any], config: Dict[str, Any]) -> Iterator[str]:
     datasets = config.get("datasets", {}).get("english", {})
+    if phase.get("english_sources"):
+        iterators = [iter(iter_english_texts({"english_dataset": src["dataset"],
+                     "english_filter": src.get("filter", {}),
+                     "english_target_gb": src.get("target_gb")}, config))
+                     for src in phase["english_sources"]]
+        active = list(range(len(iterators)))
+        while active:
+            for i in active[:]:
+                try:
+                    yield next(iterators[i])
+                except StopIteration:
+                    active.remove(i)
+        return
     key = phase.get("english_dataset")
     if not key:
         return
-    en_cfg = datasets.get(key, {})
+    if key not in datasets:
+        raise ValueError(f"Unknown English dataset: {key}")
+    en_cfg = datasets[key]
     text_column = en_cfg.get("text_column", "text")
     score_column = en_cfg.get("score_column", "score")
     score_gte = phase.get("english_filter", {}).get("score_gte")
@@ -283,7 +316,12 @@ def iter_english_texts(phase: Dict[str, Any], config: Dict[str, Any]) -> Iterato
         dataset_name = en_cfg.get("repo") or en_cfg.get("name")
         subset = en_cfg.get("subset")
         split = en_cfg.get("split", "train")
+        revision = en_cfg.get("revision")
+        if config.get("training", {}).get("mode") == "continuous_cpt" and not revision:
+            raise ValueError(f"English dataset {key} requires a pinned revision")
         load_kwargs = {"split": split, "streaming": True}
+        if revision:
+            load_kwargs["revision"] = revision
         token = get_hf_token()
         if token:
             load_kwargs["token"] = token
@@ -303,6 +341,13 @@ def iter_english_texts(phase: Dict[str, Any], config: Dict[str, Any]) -> Iterato
             text = row_or_text.get(text_column)
         if not isinstance(text, str) or not text.strip():
             continue
+        if config.get("training", {}).get("mode") == "continuous_cpt":
+            from .classified import content_split, document_hash
+            settings = config["datasets"]["turkish"]["classified"]
+            requested = config.get("token_cache", {}).get("split", "train")
+            if content_split(document_hash(text), float(settings.get("validation_fraction", .01)),
+                             int(settings.get("split_seed", 42))) != requested:
+                continue
         text_bytes = len(text.encode("utf-8"))
         if target_bytes is not None and seen_bytes + text_bytes > target_bytes:
             break

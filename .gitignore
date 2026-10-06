@@ -8,6 +8,9 @@ checkpoints/
 
 # Sanal Ortamlar (Bunları asla GitHub'a atma)
 venv/
+.venv/
+artifacts/
+cache/
 env/
 .env
 
