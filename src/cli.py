@@ -1,6 +1,9 @@
 """Command-line entry point for single-phase and four-phase CPT workflows."""
 
 import argparse
+import hashlib
+import json
+import math
 import logging
 import os
 import sys
@@ -25,7 +28,7 @@ from .data.curriculum import (
     prepare_manifests,
     read_json,
 )
-from .data.mixing import weighted_mix_texts
+from .data.mixing import weighted_mix_texts, token_balanced_mix
 from .data.preprocess import clean_text, strip_legacy_end_markers
 from .train.checkpoint import find_latest_checkpoint, read_latest_metadata
 from .utils import check_environment, setup_logging
@@ -90,11 +93,8 @@ def setup_from_config(config: Dict[str, Any]) -> None:
         probe = log_dir / ".write_test"
         probe.write_text("ok", encoding="utf-8")
         probe.unlink()
-    except PermissionError:
-        log_dir = Path("logs")
-        log_dir.mkdir(parents=True, exist_ok=True)
-        config.setdefault("paths", {})["log_dir"] = str(log_dir)
-        config.setdefault("logging", {})["log_dir"] = str(log_dir)
+    except PermissionError as exc:
+        raise RuntimeError(f"Configured log directory is not writable: {log_dir}") from exc
     setup_logging("INFO", str(log_dir / "training.log"))
 
 
@@ -146,7 +146,9 @@ def estimate_phase_tokens(phase: Dict[str, Any], chars_per_token: float = 4.0) -
 
 
 def phase_token_cache_dir(config: Dict[str, Any], phase_id: int) -> Path:
-    return Path(config.get("paths", {}).get("cache_dir", "./cache")) / "token_cache" / f"phase_{int(phase_id)}"
+    split = config.get("token_cache", {}).get("split", "train")
+    suffix = "" if split == "train" else f"_{split}"
+    return Path(config.get("paths", {}).get("cache_dir", "./cache")) / "token_cache" / f"phase_{int(phase_id)}{suffix}"
 
 
 def ensure_manifests(config: Dict[str, Any]) -> str:
@@ -166,6 +168,7 @@ def build_phase_text_stream(
     config: Dict[str, Any],
     phase: Dict[str, Any],
     phase_manifest: Dict[str, Any],
+    tokenizer=None,
 ) -> Iterator[Tuple[str, str]]:
     data_cfg = config.get("datasets", {}).get("turkish", config.get("data", {}))
     min_text_length = int(data_cfg.get("min_text_length", config.get("data", {}).get("min_text_length", 50)))
@@ -174,6 +177,25 @@ def build_phase_text_stream(
     en_texts = iter_english_texts(phase, config)
     mix_cfg = phase.get("mix", {})
     seed = int(config.get("project", {}).get("seed", config.get("seed", 42))) + int(phase["id"])
+    if phase.get("mix", {}).get("unit") == "tokens":
+        if tokenizer is None:
+            raise ValueError("Token-balanced mixing requires tokenizer")
+        tr_ratio = float(mix_cfg.get("turkish_ratio", .8))
+        if not 0 < tr_ratio < 1:
+            raise ValueError("turkish_ratio must be between zero and one")
+        streams = [tr_texts]
+        weights = [tr_ratio]
+        source_names = ["turkish"]
+        english_sources = phase.get("english_sources") or [{"dataset": phase["english_dataset"], "weight": 1.0}]
+        total_weight = sum(float(src.get("weight", 1)) for src in english_sources)
+        for src in english_sources:
+            streams.append(iter_english_texts({"english_dataset": src["dataset"],
+                            "english_filter": src.get("filter", {})}, config))
+            weights.append((1-tr_ratio) * float(src.get("weight", 1)) / total_weight)
+            source_names.append("english")
+        # Classified raw text has already been verified. Avoid changing it after hash validation.
+        mixed = token_balanced_mix(streams, weights, tokenizer)
+        return ((text, source_names[idx]) for text, idx in mixed)
     mixed = weighted_mix_texts(
         tr_texts,
         en_texts,
@@ -182,6 +204,17 @@ def build_phase_text_stream(
     )
     return preprocess_with_sources(mixed, min_length=min_text_length, strip_legacy_markers=strip_legacy)
 
+
+
+def cache_data_identity(config, phase):
+    identity = {"split": config.get("token_cache", {}).get("split", "train"),
+                "datasets": config.get("datasets", {}), "phase": phase,
+                "seed": config.get("project", {}).get("seed", 42)}
+    classified = config.get("datasets", {}).get("turkish", {}).get("classified", {})
+    plan = classified.get("source_plan")
+    if isinstance(plan, str):
+        identity["source_plan_sha256"] = hashlib.sha256(Path(plan).read_bytes()).hexdigest()
+    return identity
 
 def prepare_phase_token_cache(
     config: Dict[str, Any],
@@ -197,7 +230,7 @@ def prepare_phase_token_cache(
     token_cache_cfg = config.get("token_cache", {})
     batch_size = int(batch_size_override or token_cache_cfg.get("batch_size", 1024))
     chunks_per_shard = int(chunks_per_shard_override or token_cache_cfg.get("chunks_per_shard", 8192))
-    texts = build_phase_text_stream(config, phase, phase_manifest)
+    texts = build_phase_text_stream(config, phase, phase_manifest, tokenizer)
     return pack_and_tokenize_to_sharded_cache(
         texts,
         tokenizer,
@@ -207,6 +240,8 @@ def prepare_phase_token_cache(
         chunks_per_shard=chunks_per_shard,
         resume=True,
         force_rebuild=force_rebuild,
+        cache_identity=cache_data_identity(config, phase),
+        max_tokens=config.get("token_cache", {}).get("max_tokens", config.get("training", {}).get("max_tokens")),
     )
 
 
@@ -221,9 +256,7 @@ def build_phase_dataloader(
     cache_dir = phase_token_cache_dir(config, int(phase["id"]))
     seq_len = get_seq_len(config)
 
-    if not token_cache_is_complete(str(cache_dir), seq_len=seq_len):
-        logger.info("No complete token cache for phase %s; preparing it now", phase["id"])
-        prepare_phase_token_cache(config, phase, phase_manifest, tokenizer)
+    prepare_phase_token_cache(config, phase, phase_manifest, tokenizer)
 
     dataset = ShardedMemmapPackedDataset(str(cache_dir / "manifest.json"))
     num_chunks = len(dataset)
@@ -235,8 +268,9 @@ def build_phase_dataloader(
     loader = create_dataloader(
         dataset,
         batch_size=int(train_cfg.get("micro_batch_size", 1)),
-        shuffle=True,
-        num_workers=int(train_cfg.get("dataloader_num_workers", data_cfg.get("num_workers", 2))),
+        shuffle=False,
+        num_workers=0,
+        drop_last=False,
         prefetch_factor=int(train_cfg.get("prefetch_factor", data_cfg.get("prefetch_factor", 2))),
     )
     return loader, num_chunks
@@ -253,8 +287,53 @@ def apply_runtime_paths(config: Dict[str, Any]) -> Dict[str, Any]:
     return config
 
 
+
+def validate_runtime_config(config):
+    if get_training_mode(config) != "continuous_cpt":
+        return
+    if len(config.get("phases", [])) != 1:
+        raise ValueError("continuous_cpt requires one data stream and one scheduler")
+    root = Path(config.get("paths", {}).get("storage_root", ""))
+    if not root.is_absolute() or not root.is_dir():
+        raise ValueError("paths.storage_root must be an existing absolute persistent disk directory")
+    for key in ("cache_dir", "checkpoint_dir", "log_dir", "manifest_dir"):
+        path = Path(config["paths"][key]).resolve()
+        if not path.is_relative_to(root.resolve()):
+            raise ValueError(f"paths.{key} must be on storage_root")
+    import re
+    if not re.fullmatch(r"[0-9a-f]{40}", config.get("model", {}).get("revision", "") or ""):
+        raise ValueError("model.revision must be a commit SHA")
+    classified = config.get("datasets", {}).get("turkish", {}).get("classified", {})
+    if not re.fullmatch(r"[0-9a-f]{40}", classified.get("labels_revision", "") or ""):
+        raise ValueError("Freeze the private label revision first with freeze-inputs")
+    if int(config.get("training", {}).get("max_tokens", 0)) <= 0:
+        raise ValueError("continuous CPT requires a positive max_tokens budget")
+
+
+def command_freeze_inputs(args):
+    from huggingface_hub import HfApi
+    from .data.curriculum import get_hf_token
+    config = load_yaml_config(args.config)
+    api = HfApi(token=get_hf_token())
+    model = config["model"]
+    model["revision"] = api.repo_info(model["base_model"], revision=model.get("revision"), repo_type="model").sha
+    classified = config["datasets"]["turkish"]["classified"]
+    classified["labels_revision"] = api.repo_info(classified["labels_repo"], revision=classified.get("labels_revision"), repo_type="dataset").sha
+    for entry in config["datasets"].get("english", {}).values():
+        if entry.get("repo"):
+            entry["revision"] = api.repo_info(entry["repo"], revision=entry.get("revision"), repo_type="dataset").sha
+    if args.labels_files:
+        available = set(api.list_repo_files(classified["labels_repo"], repo_type="dataset", revision=classified["labels_revision"]))
+        if not set(args.labels_files) <= available:
+            raise ValueError("Requested label shards are absent at frozen revision")
+        classified["labels_files"] = args.labels_files
+    save_yaml_config(config, args.output)
+    print(f"Frozen input revisions: {args.output}")
+    return 0
+
 def command_prepare_manifests(args: argparse.Namespace) -> int:
     config = load_yaml_config(args.config)
+    validate_runtime_config(config)
     setup_from_config(config)
     result = prepare_manifests(config, get_manifest_dir(config))
     logger.info("Wrote manifests: %s", result)
@@ -263,8 +342,32 @@ def command_prepare_manifests(args: argparse.Namespace) -> int:
 
 def command_validate_datasets(args: argparse.Namespace) -> int:
     config = load_yaml_config(args.config)
+    validate_runtime_config(config)
     setup_from_config(config)
     result = prepare_manifests(config, get_manifest_dir(config))
+    if config.get("datasets", {}).get("turkish", {}).get("classified"):
+        from .data.classified import iter_classified_texts
+        stream = iter_classified_texts(config)
+        verified = 0
+        try:
+            for _ in range(args.max_documents):
+                if next(stream, None) is None:
+                    break
+                verified += 1
+        finally:
+            stream.close()
+        if not verified:
+            raise ValueError("No accepted verified Turkish documents in selected labels")
+        for phase in config.get("phases", []):
+            for entry in phase.get("english_sources", []):
+                replay = iter_english_texts({"english_dataset": entry["dataset"], "english_filter": entry.get("filter", {})}, config)
+                try:
+                    if next(replay, None) is None:
+                        raise ValueError(f"Empty English replay source: {entry['dataset']}")
+                finally:
+                    replay.close()
+        logger.info("Verified %s Turkish texts and replay availability; partial coverage only", verified)
+        return 0
     turkish = read_json(result["turkish_manifest"])
     logger.info("Turkish shards: %s", turkish["total_files"])
     if turkish["total_files"] == 0:
@@ -309,12 +412,14 @@ def print_dry_run(config: Dict[str, Any]) -> None:
     for phase in config.get("phases", []):
         phase_id = int(phase["id"])
         manifest = read_json(str(Path(manifest_dir) / f"phase_{phase_id}_manifest.json"))
-        estimated_tokens = estimate_phase_tokens(phase)
+        cached = phase_token_cache_dir(config, phase_id) / "manifest.json"
+        measured_tokens = read_json(str(cached)).get("total_tokens", 0) if cached.exists() else None
+        estimated_tokens = measured_tokens if measured_tokens is not None else int(train_cfg.get("max_tokens", 0) or estimate_phase_tokens(phase))
         estimated_steps = max(1, estimated_tokens // max(1, batch["global_batch_tokens"]))
         optimizer = phase.get("optimizer", {})
         print(
             "  phase={phase} name={name} tr_files={tr_files} english={english} "
-            "lr={lr} warmup={warmup} est_tokens={tokens:,} est_steps={steps:,}".format(
+            "lr={lr} warmup={warmup} budget_or_measured_tokens={tokens:,} est_steps={steps:,}".format(
                 phase=phase_id,
                 name=phase.get("name"),
                 tr_files=len(manifest.get("turkish_files", [])),
@@ -329,6 +434,7 @@ def print_dry_run(config: Dict[str, Any]) -> None:
 
 def command_dry_run(args: argparse.Namespace) -> int:
     config = load_yaml_config(args.config)
+    validate_runtime_config(config)
     setup_from_config(config)
     print_dry_run(config)
     return 0
@@ -336,6 +442,10 @@ def command_dry_run(args: argparse.Namespace) -> int:
 
 def command_prepare_token_cache(args: argparse.Namespace) -> int:
     config = apply_runtime_paths(load_yaml_config(args.config))
+    config.setdefault("token_cache", {})["split"] = args.split
+    if args.token_budget is not None:
+        config["token_cache"]["max_tokens"] = args.token_budget
+    validate_runtime_config(config)
     setup_from_config(config)
     if args.tokenizers_parallelism is not None:
         os.environ["TOKENIZERS_PARALLELISM"] = args.tokenizers_parallelism
@@ -365,9 +475,6 @@ def command_prepare_token_cache(args: argparse.Namespace) -> int:
         phase = get_phase(config, phase_id)
         phase_manifest = load_phase_manifest(manifest_dir, phase_id)
         cache_dir = phase_token_cache_dir(config, phase_id)
-        if token_cache_is_complete(str(cache_dir), seq_len=get_seq_len(config)) and not args.force:
-            logger.info("Phase %s token cache already complete: %s", phase_id, cache_dir)
-            continue
         manifest = prepare_phase_token_cache(
             config,
             phase,
@@ -403,6 +510,7 @@ def command_train(args: argparse.Namespace) -> int:
     from .train import Trainer
 
     config = apply_runtime_paths(load_yaml_config(args.config))
+    validate_runtime_config(config)
     setup_from_config(config)
     logger.info("Training mode: %s", get_training_mode(config))
     check_environment(verbose=True)
@@ -410,8 +518,10 @@ def command_train(args: argparse.Namespace) -> int:
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    if get_training_mode(config) != "four_phase_curriculum":
-        logger.error("src.cli train currently expects training.mode=four_phase_curriculum. Use train.py for legacy single-phase runs.")
+    if int(os.environ.get("WORLD_SIZE", "1")) != 1:
+        raise ValueError("This trainer supports one GPU only; WORLD_SIZE must be 1")
+    if get_training_mode(config) not in ("four_phase_curriculum", "continuous_cpt"):
+        logger.error("Use continuous_cpt or four_phase_curriculum mode, or train.py for legacy experiments.")
         return 2
 
     manifest_dir = ensure_manifests(config)
@@ -428,10 +538,18 @@ def command_train(args: argparse.Namespace) -> int:
         raise ValueError("No phases selected")
 
     resume_checkpoint = resolve_resume_checkpoint(config, args.resume, args.phase)
-    latest = read_latest_metadata(get_checkpoint_dir(config)) if resume_checkpoint else None
+    latest = None
+    if resume_checkpoint:
+        metadata_path = Path(resume_checkpoint) / "checkpoint_metadata.json"
+        if not metadata_path.exists():
+            raise ValueError("Resume requires checkpoint_metadata.json from the corrected trainer; use old weights as an explicit new model source")
+        latest = read_json(str(metadata_path))
+        latest["latest_checkpoint"] = resume_checkpoint
+    if args.phase is not None and latest and int(latest.get("phase", -1)) != args.phase:
+        raise ValueError("Resume checkpoint phase does not match --phase")
     if args.phase is None and latest and latest.get("phase"):
         start_phase = int(latest["phase"])
-        if str(latest.get("latest_checkpoint", "")).rstrip("/").endswith("/final"):
+        if latest.get("phase_completed") is True:
             start_phase += 1
         selected_phase_ids = [phase_id for phase_id in selected_phase_ids if phase_id >= start_phase]
 
@@ -441,14 +559,19 @@ def command_train(args: argparse.Namespace) -> int:
         phase_manifest = load_phase_manifest(manifest_dir, phase_id)
         phase_config = apply_runtime_paths(phase_training_config(config, phase))
         train_cfg = phase_config.setdefault("training", {})
+        if train_cfg.get("max_tokens"):
+            batch_tokens = get_seq_len(phase_config) * int(train_cfg.get("micro_batch_size", 1)) * int(train_cfg.get("gradient_accumulation_steps", 1))
+            train_cfg["max_steps"] = math.ceil(int(train_cfg["max_tokens"]) / batch_tokens)
         if args.max_steps is not None:
-            train_cfg["max_steps"] = args.max_steps
+            # An operator interruption must not change the scheduler horizon.
+            train_cfg["stop_after_steps"] = args.max_steps
         if args.checkpoint_every_steps is not None:
             phase_config.setdefault("checkpointing", {})["checkpoint_every_steps"] = args.checkpoint_every_steps
 
         logger.info("Preparing phase %s data", phase_id)
         dataloader, num_chunks = build_phase_dataloader(phase_config, phase, phase_manifest, tokenizer)
         logger.info("Phase %s dataset: %s chunks of %s tokens", phase_id, num_chunks, get_seq_len(phase_config))
+        train_cfg["cache_fingerprint"] = hashlib.sha256(json.dumps(dataloader.dataset.manifest, sort_keys=True).encode()).hexdigest()
 
         if model is None:
             model_source = resume_checkpoint or model_cfg.get("base_model") or model_cfg.get("name")
@@ -460,6 +583,7 @@ def command_train(args: argparse.Namespace) -> int:
                 attn_implementation=model_cfg.get("attn_implementation", "sdpa"),
                 use_mamba_kernels=model_cfg.get("use_mamba_kernels", True),
                 use_cache=model_cfg.get("use_cache", False),
+                revision=None if resume_checkpoint else model_cfg.get("revision"),
             )
 
         phase_resume = resume_checkpoint if latest and int(latest.get("phase", phase_id)) == phase_id else None
@@ -472,7 +596,10 @@ def command_train(args: argparse.Namespace) -> int:
             tokenizer=tokenizer,
         )
         summary = trainer.train()
-        logger.info("Phase %s complete: %s", phase_id, summary)
+        logger.info("Phase %s result: %s", phase_id, summary)
+        if not summary.get("phase_completed", False):
+            logger.warning("CPT paused; resume this phase before proceeding")
+            return 0
         resume_checkpoint = None
         latest = None
 
@@ -484,7 +611,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     def add_config_arg(subparser):
-        subparser.add_argument("--config", "-c", default="configs/cpt_4phase.yaml")
+        subparser.add_argument("--config", "-c", default="configs/cpt_classified.yaml")
+
+    freeze = subparsers.add_parser("freeze-inputs")
+    add_config_arg(freeze)
+    freeze.add_argument("--output", required=True)
+    freeze.add_argument("--labels-files", nargs="+", default=None)
+    freeze.set_defaults(func=command_freeze_inputs)
 
     prepare = subparsers.add_parser("prepare-manifests")
     add_config_arg(prepare)
@@ -492,6 +625,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate = subparsers.add_parser("validate-datasets")
     add_config_arg(validate)
+    validate.add_argument("--max_documents", type=int, default=64)
     validate.set_defaults(func=command_validate_datasets)
 
     dry_run = subparsers.add_parser("dry-run")
@@ -501,6 +635,8 @@ def build_parser() -> argparse.ArgumentParser:
     token_cache = subparsers.add_parser("prepare-token-cache")
     add_config_arg(token_cache)
     token_cache.add_argument("--phase", type=int, default=None)
+    token_cache.add_argument("--split", choices=["train", "validation"], default="train")
+    token_cache.add_argument("--token_budget", type=int, default=None)
     token_cache.add_argument("--batch_size", type=int, default=None)
     token_cache.add_argument("--chunks_per_shard", type=int, default=None)
     token_cache.add_argument("--force", action="store_true")
@@ -527,7 +663,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
     try:
         return args.func(args)
-    except RuntimeError as exc:
+    except (RuntimeError, ValueError) as exc:
         logger.error("%s", exc)
         return 1
 

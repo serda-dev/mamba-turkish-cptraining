@@ -11,117 +11,56 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
+class PackedChunk(list):
+    """List-compatible packed sequence carrying its unpadded length."""
+
+    def __init__(self, tokens, valid_length):
+        super().__init__(tokens)
+        self.valid_length = valid_length
+
+
 def pack_and_tokenize(
-    texts: Iterator[str],
-    tokenizer,
-    seq_len: int = 1024,
-    show_progress: bool = True,
-    max_chunks: Optional[int] = None,
+    texts: Iterator[str], tokenizer, seq_len: int = 1024,
+    show_progress: bool = True, max_chunks: Optional[int] = None,
 ) -> List[List[int]]:
-    """
-    Tokenize texts and pack into fixed-length chunks.
-    
-    Concatenates all texts with EOS tokens, then splits into 
-    seq_len chunks. This minimizes padding waste compared to 
-    padding each sample individually.
-    
-    Args:
-        texts: Iterator of text strings
-        tokenizer: HuggingFace tokenizer with encode() method
-        seq_len: Target sequence length for each chunk
-        show_progress: Show tqdm progress bar
-        max_chunks: Optional limit on chunks to create
-        
-    Returns:
-        List of token ID lists, each of length seq_len
-    """
-    eos_token_id = tokenizer.eos_token_id
-    if eos_token_id is None:
-        # Fallback to pad token or a sentinel
-        eos_token_id = tokenizer.pad_token_id or 0
-        logger.warning(f"No EOS token found, using token ID {eos_token_id}")
-    
+    """In-memory packing preserving a masked final tail and exact chunk limit."""
+    if max_chunks is not None and max_chunks < 0:
+        raise ValueError("max_chunks must be nonnegative")
+    if max_chunks == 0:
+        return []
     chunks = []
-    buffer = []
-    texts_processed = 0
-    
-    texts_iter = tqdm(texts, desc="Tokenizing", disable=not show_progress)
-    
-    for text in texts_iter:
-        # Tokenize without special tokens (we add EOS manually)
-        tokens = tokenizer.encode(text, add_special_tokens=False)
-        
-        if not tokens:
-            continue
-        
-        texts_processed += 1
-        
-        # Add tokens + EOS to buffer
-        buffer.extend(tokens)
-        buffer.append(eos_token_id)
-        
-        # Extract complete chunks from buffer
-        while len(buffer) >= seq_len:
-            chunks.append(buffer[:seq_len])
-            buffer = buffer[seq_len:]
-            
-            if max_chunks and len(chunks) >= max_chunks:
-                logger.info(f"Reached max_chunks limit: {max_chunks}")
-                break
-        
-        if max_chunks and len(chunks) >= max_chunks:
+    for chunk in pack_and_tokenize_streaming(
+        tqdm(texts, desc="Tokenizing", disable=not show_progress), tokenizer, seq_len
+    ):
+        chunks.append(chunk)
+        if max_chunks is not None and len(chunks) >= max_chunks:
             break
-    
-    # Handle remaining buffer (drop if too short, as it would need padding)
-    if buffer and len(buffer) >= seq_len // 2:
-        # Pad the last chunk if it's at least half full
-        pad_token_id = tokenizer.pad_token_id or eos_token_id
-        while len(buffer) < seq_len:
-            buffer.append(pad_token_id)
-        chunks.append(buffer)
-    
-    logger.info(
-        f"Packing complete: {texts_processed} texts -> {len(chunks)} chunks "
-        f"(seq_len={seq_len}, ~{len(chunks) * seq_len:,} tokens)"
-    )
-    
     return chunks
 
 
 def pack_and_tokenize_streaming(
-    texts: Iterator[str],
-    tokenizer,
-    seq_len: int = 1024,
+    texts: Iterator[str], tokenizer, seq_len: int = 1024,
 ) -> Iterator[List[int]]:
-    """
-    Streaming version that yields chunks one at a time.
-    Memory-efficient for very large datasets.
-    """
-    eos_token_id = tokenizer.eos_token_id
-    if eos_token_id is None:
-        eos_token_id = tokenizer.pad_token_id or 0
-    
+    """Stream full sequences and a final PackedChunk with explicit valid length."""
+    if seq_len <= 0:
+        raise ValueError("seq_len must be positive")
+    eos = tokenizer.eos_token_id
+    if eos is None:
+        eos = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else 0
+    pad = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else eos
     buffer = []
-    
     for text in texts:
         tokens = tokenizer.encode(text, add_special_tokens=False)
-        
         if not tokens:
             continue
-        
         buffer.extend(tokens)
-        buffer.append(eos_token_id)
-        
+        buffer.append(eos)
         while len(buffer) >= seq_len:
-            yield buffer[:seq_len]
+            yield PackedChunk(buffer[:seq_len], seq_len)
             buffer = buffer[seq_len:]
-    
-    # Optionally yield padded final chunk
-    if buffer and len(buffer) >= seq_len // 2:
-        pad_token_id = tokenizer.pad_token_id or eos_token_id
-        while len(buffer) < seq_len:
-            buffer.append(pad_token_id)
-        yield buffer
+    if buffer:
+        valid = len(buffer)
+        yield PackedChunk(buffer + [pad] * (seq_len - valid), valid)
 
 
 TextOrSource = Union[str, Tuple[str, str]]
@@ -145,19 +84,46 @@ def load_token_cache_manifest(cache_dir: str) -> Optional[dict]:
         return json.load(f)
 
 
-def token_cache_is_complete(cache_dir: str, seq_len: Optional[int] = None) -> bool:
-    manifest = load_token_cache_manifest(cache_dir)
-    if not manifest or not manifest.get("complete"):
-        return False
-    if seq_len is not None and int(manifest.get("seq_len", -1)) != int(seq_len):
-        return False
-    cache_path = Path(cache_dir)
+def _validate_cache_shards(cache_dir: str, manifest: dict) -> None:
+    import hashlib
+    import numpy as np
+    if manifest.get("format") != "sharded_token_cache_v2":
+        raise ValueError("Legacy token cache must be rebuilt to preserve padding and integrity")
+    root = Path(cache_dir).resolve()
     for shard in manifest.get("shards", []):
-        if not (cache_path / shard["path"]).exists():
+        n = int(shard["num_chunks"])
+        expected = {
+            "path": n * int(manifest["seq_len"]) * np.dtype(manifest["dtype"]).itemsize,
+            "source_ids_path": n,
+            "token_source_ids_path": n * int(manifest["seq_len"]),
+            "valid_lengths_path": n * 4,
+        }
+        for key, size in expected.items():
+            path = (root / shard[key]).resolve()
+            if path.parent != root or not path.is_file() or path.stat().st_size != size:
+                raise ValueError(f"Invalid token cache shard size/path: {path}")
+            digest = hashlib.sha256()
+            with path.open("rb") as f:
+                for block in iter(lambda: f.read(1024 * 1024), b""):
+                    digest.update(block)
+            if digest.hexdigest() != shard["sha256"][key]:
+                raise ValueError(f"Token cache shard integrity failure: {path}")
+
+
+def token_cache_is_complete(cache_dir: str, seq_len: Optional[int] = None,
+                            cache_identity: Optional[dict] = None) -> bool:
+    try:
+        manifest = load_token_cache_manifest(cache_dir)
+        if not manifest or not manifest.get("complete"):
             return False
-        if not (cache_path / shard["source_ids_path"]).exists():
+        if seq_len is not None and int(manifest.get("seq_len", -1)) != int(seq_len):
             return False
-    return True
+        if cache_identity is not None and manifest.get("cache_identity") != cache_identity:
+            return False
+        _validate_cache_shards(cache_dir, manifest)
+        return True
+    except (ValueError, KeyError, OSError):
+        return False
 
 
 def _write_token_cache_manifest(cache_dir: Path, manifest: dict) -> None:
@@ -177,436 +143,219 @@ def _skip_items(items: Iterator[TextOrSource], count: int) -> Iterator[TextOrSou
         yield item
 
 
-def pack_and_tokenize_to_sharded_cache(
-    texts: Iterator[TextOrSource],
-    tokenizer,
-    seq_len: int = 1024,
-    cache_dir: str = "./cache/token_cache/phase_1",
-    batch_size: int = 1024,
-    chunks_per_shard: int = 8192,
-    resume: bool = True,
-    force_rebuild: bool = False,
-    show_progress: bool = True,
-) -> dict:
-    """
-    Batch-tokenize text/source pairs into resumable packed-token cache shards.
+def tokenization_fingerprint(tokenizer) -> str:
+    """Content identity independent of the directory holding a saved tokenizer."""
+    import hashlib
+    try:
+        vocab_size = len(tokenizer)
+    except TypeError:
+        vocab_size = tokenizer.vocab_size
+    state = {"vocab_size": vocab_size, "eos": tokenizer.eos_token_id,
+             "pad": tokenizer.pad_token_id}
+    if hasattr(tokenizer, "get_vocab"):
+        state["vocab"] = tokenizer.get_vocab()
+    if hasattr(tokenizer, "backend_tokenizer"):
+        # Canonicalize JSON serialization while retaining normalizer, pre-tokenizer,
+        # merges, added-token properties and post-processing configuration.
+        state["backend"] = json.loads(tokenizer.backend_tokenizer.to_str())
+    return hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()
 
-    Completed shards are never rewritten during resume. The manifest stores the
-    pending token buffer at shard boundaries so continuation preserves exact
-    concatenate-then-pack semantics after the last completed shard.
+
+# Keep the natural tokenizer-name spelling available to other repository callers.
+tokenizer_fingerprint = tokenization_fingerprint
+
+
+def pack_and_tokenize_to_sharded_cache(
+    texts: Iterator[TextOrSource], tokenizer, seq_len: int = 1024,
+    cache_dir: str = "./cache/token_cache/phase_1", batch_size: int = 1024,
+    chunks_per_shard: int = 8192, resume: bool = True,
+    force_rebuild: bool = False, show_progress: bool = True,
+    cache_identity: Optional[dict] = None, max_tokens: Optional[int] = None,
+) -> dict:
+    """Pack documents exactly once with durable document-boundary checkpoints.
+
+    max_tokens counts actual tokens including document EOS, excluding padding.
+    Data/order provenance belongs in cache_identity. Iterator exceptions propagate;
+    only fully processed documents are checkpointed. Resuming requires the same
+    deterministic input iterator and tokenizer.
     """
+    import hashlib
     import numpy as np
     import shutil
 
+    if min(seq_len, batch_size, chunks_per_shard) <= 0:
+        raise ValueError("Sequence, batch and shard sizes must be positive")
+    if max_tokens is not None and max_tokens <= 0:
+        raise ValueError("max_tokens must be positive")
     cache_path = Path(cache_dir)
     if force_rebuild and cache_path.exists():
         shutil.rmtree(cache_path)
     cache_path.mkdir(parents=True, exist_ok=True)
-
-    eos_token_id = tokenizer.eos_token_id
-    if eos_token_id is None:
-        eos_token_id = tokenizer.pad_token_id or 0
-        logger.warning("No EOS token found, using token ID %s", eos_token_id)
-    pad_token_id = tokenizer.pad_token_id or eos_token_id
-    dtype = np.uint16 if tokenizer.vocab_size <= 65536 else np.uint32
-
-    manifest = load_token_cache_manifest(str(cache_path)) if resume else None
-    if manifest and manifest.get("complete"):
-        logger.info("Token cache already complete: %s", cache_path)
-        return manifest
-
+    eos = tokenizer.eos_token_id
+    if eos is None:
+        eos = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else 0
+    pad = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else eos
+    try:
+        vocab_size = len(tokenizer)
+    except TypeError:
+        vocab_size = tokenizer.vocab_size
+    dtype = np.dtype("uint16" if vocab_size <= 65536 else "uint32")
+    fingerprint = tokenization_fingerprint(tokenizer)
+    manifest = load_token_cache_manifest(str(cache_path))
+    if manifest and not resume:
+        raise ValueError("Cache exists; use force_rebuild=True or resume=True")
     if manifest:
-        if int(manifest.get("seq_len", seq_len)) != int(seq_len):
-            raise ValueError(
-                f"Existing token cache seq_len={manifest.get('seq_len')} does not match requested {seq_len}"
-            )
-        if manifest.get("dtype") != np.dtype(dtype).name:
-            raise ValueError(
-                f"Existing token cache dtype={manifest.get('dtype')} does not match tokenizer dtype {np.dtype(dtype).name}"
-            )
-        shards = manifest.get("shards", [])
-        source_id_to_name = {int(k): v for k, v in manifest.get("source_id_to_name", {}).items()}
-        source_name_to_id = {v: k for k, v in source_id_to_name.items()}
-        buffer = list(manifest.get("pending_buffer", []))
-        source_buffer = list(manifest.get("pending_source_buffer", []))
-        texts_processed = int(manifest.get("texts_processed", 0))
-        total_chunks = int(manifest.get("total_chunks", 0))
-        source_chunk_counts = Counter(manifest.get("source_chunk_counts", {}))
-        source_token_counts = Counter(manifest.get("source_token_counts", {}))
-        next_shard_idx = len(shards)
-        texts = _skip_items(texts, texts_processed)
-        logger.info(
-            "Resuming token cache: %s completed shard(s), %s chunks, %s texts processed",
-            len(shards),
-            total_chunks,
-            texts_processed,
-        )
+        if (manifest.get("seq_len") != seq_len or manifest.get("dtype") != dtype.name
+                or manifest.get("tokenizer_fingerprint") != fingerprint
+                or manifest.get("cache_identity") != cache_identity
+                or manifest.get("max_tokens") != max_tokens):
+            raise ValueError("Token cache identity does not match requested tokenizer/data/budget")
+        _validate_cache_shards(str(cache_path), manifest)
+        if manifest.get("complete"):
+            return manifest
     else:
-        shards = []
-        source_id_to_name = {}
-        source_name_to_id = {}
-        buffer = []
-        source_buffer = []
-        texts_processed = 0
-        total_chunks = 0
-        source_chunk_counts = Counter()
-        source_token_counts = Counter()
-        next_shard_idx = 0
-        manifest = {
-            "format": "sharded_token_cache_v1",
-            "complete": False,
-            "seq_len": seq_len,
-            "dtype": np.dtype(dtype).name,
-            "tokenizer_vocab_size": tokenizer.vocab_size,
-            "batch_size": batch_size,
-            "chunks_per_shard": chunks_per_shard,
-            "texts_processed": 0,
-            "total_chunks": 0,
-            "total_tokens": 0,
-            "shards": [],
-            "source_id_to_name": {},
-            "source_chunk_counts": {},
-            "source_token_counts": {},
-            "pending_buffer": [],
-            "pending_source_buffer": [],
-        }
-
-    current_chunks = []
-    current_source_ids = []
-
-    def source_id_for(source: Optional[str]) -> int:
-        source_name = source or "unknown"
-        if source_name not in source_name_to_id:
-            new_id = len(source_name_to_id) + 1
-            if new_id > 255:
-                raise ValueError("Too many source types for uint8 source ids")
-            source_name_to_id[source_name] = new_id
-            source_id_to_name[new_id] = source_name
-        return source_name_to_id[source_name]
-
-    def emit_current_chunk() -> None:
-        nonlocal buffer, source_buffer, total_chunks
-        if len(buffer) != seq_len:
-            return
-        current_chunks.append(np.array(buffer, dtype=dtype))
-        counts = Counter(source_buffer)
-        majority_source_id = counts.most_common(1)[0][0]
-        current_source_ids.append(majority_source_id)
-        source_name = source_id_to_name.get(majority_source_id, "unknown")
-        source_chunk_counts[source_name] += 1
-        for chunk_source_id, count in counts.items():
-            source_token_counts[source_id_to_name.get(chunk_source_id, "unknown")] += count
-        total_chunks += 1
-        buffer = []
-        source_buffer = []
-
-    def flush_shard() -> None:
-        nonlocal current_chunks, current_source_ids, next_shard_idx
-        if not current_chunks:
-            return
-        shard_name = f"shard_{next_shard_idx:06d}.bin"
-        source_name = f"shard_{next_shard_idx:06d}.source_ids.bin"
-        shard_path = cache_path / shard_name
-        source_path = cache_path / source_name
-        all_chunks = np.stack(current_chunks)
-        with open(shard_path, "wb") as f:
-            f.write(all_chunks.tobytes())
-        np.array(current_source_ids, dtype=np.uint8).tofile(source_path)
-        shard = {
-            "path": shard_name,
-            "source_ids_path": source_name,
-            "num_chunks": len(current_chunks),
-            "tokens": len(current_chunks) * seq_len,
-        }
-        shards.append(shard)
-        current_chunks = []
-        current_source_ids = []
-        next_shard_idx += 1
-        manifest.update({
-            "complete": False,
-            "texts_processed": texts_processed,
-            "total_chunks": total_chunks,
-            "total_tokens": total_chunks * seq_len,
-            "shards": shards,
-            "source_id_to_name": {str(k): v for k, v in source_id_to_name.items()},
-            "source_chunk_counts": dict(source_chunk_counts),
-            "source_token_counts": dict(source_token_counts),
-            "pending_buffer": buffer,
-            "pending_source_buffer": source_buffer,
-        })
+        manifest = {"format": "sharded_token_cache_v2", "complete": False,
+                    "seq_len": seq_len, "dtype": dtype.name,
+                    "tokenizer_vocab_size": vocab_size, "tokenizer_fingerprint": fingerprint,
+                    "cache_identity": cache_identity, "max_tokens": max_tokens,
+                    "shards": [], "texts_processed": 0, "total_chunks": 0,
+                    "total_tokens": 0, "source_id_to_name": {},
+                    "source_chunk_counts": {}, "source_token_counts": {},
+                    "pending_buffer": [], "pending_source_buffer": []}
         _write_token_cache_manifest(cache_path, manifest)
-        logger.info(
-            "Wrote token cache shard %s: chunks=%s total_chunks=%s texts_processed=%s",
-            shard_name,
-            shard["num_chunks"],
-            total_chunks,
-            texts_processed,
-        )
+    shards = manifest["shards"]
+    sources = {int(k): v for k, v in manifest["source_id_to_name"].items()}
+    source_ids = {v: k for k, v in sources.items()}
+    buffer = list(manifest["pending_buffer"])
+    source_buffer = list(manifest["pending_source_buffer"])
+    processed = manifest["texts_processed"]
+    total_chunks = manifest["total_chunks"]
+    total_tokens = manifest["total_tokens"]
+    chunk_counts = Counter(manifest["source_chunk_counts"])
+    token_counts = Counter(manifest["source_token_counts"])
+    rows, row_sources, majorities, valid_lengths = [], [], [], []
 
-    def append_sequence(token_ids: list[int], source_id: int) -> None:
-        if not token_ids:
-            return
-        token_ids.append(eos_token_id)
-        sequence = token_ids
-        offset = 0
-        while offset < len(sequence):
-            remaining = seq_len - len(buffer)
-            take = min(remaining, len(sequence) - offset)
-            buffer.extend(sequence[offset : offset + take])
-            source_buffer.extend([source_id] * take)
-            offset += take
-            emit_current_chunk()
+    def emit(valid):
+        nonlocal buffer, source_buffer, total_chunks
+        counts = Counter(source_buffer[:valid])
+        majority = counts.most_common(1)[0][0]
+        rows.append(buffer + [pad] * (seq_len - valid))
+        row_sources.append(source_buffer + [0] * (seq_len - valid))
+        majorities.append(majority)
+        valid_lengths.append(valid)
+        chunk_counts[sources[majority]] += 1
+        total_chunks += 1
+        buffer, source_buffer = [], []
 
-    # Maximum 30 million characters per batch (~30MB raw text) to prevent RAM swap thrashing
-    MAX_CHARS_PER_BATCH = 30_000_000
+    def checkpoint(complete=False):
+        if rows:
+            idx = len(shards)
+            shard = {"num_chunks": len(rows), "tokens": sum(valid_lengths), "sha256": {}}
+            arrays = {"path": (f"shard_{idx:06d}.bin", rows, dtype),
+                      "source_ids_path": (f"shard_{idx:06d}.source_ids.bin", majorities, np.uint8),
+                      "token_source_ids_path": (f"shard_{idx:06d}.token_sources.bin", row_sources, np.uint8),
+                      "valid_lengths_path": (f"shard_{idx:06d}.valid_lengths.bin", valid_lengths, np.uint32)}
+            for key, (name, values, arr_dtype) in arrays.items():
+                raw = np.asarray(values, dtype=arr_dtype).tobytes()
+                temp = cache_path / (name + ".tmp")
+                temp.write_bytes(raw)
+                temp.replace(cache_path / name)
+                shard[key] = name
+                shard["sha256"][key] = hashlib.sha256(raw).hexdigest()
+            shards.append(shard)
+            rows.clear(); row_sources.clear(); majorities.clear(); valid_lengths.clear()
+        manifest.update(complete=complete, texts_processed=processed, total_chunks=total_chunks,
+                        total_tokens=total_tokens, stored_tokens=total_chunks * seq_len,
+                        shards=shards, source_id_to_name={str(k): v for k, v in sources.items()},
+                        source_chunk_counts=dict(chunk_counts), source_token_counts=dict(token_counts),
+                        pending_buffer=buffer, pending_source_buffer=source_buffer)
+        _write_token_cache_manifest(cache_path, manifest)
 
-    def process_batch(items: list[TextOrSource]) -> None:
-        nonlocal texts_processed
-        if not items:
-            return
-        batch_texts = []
-        batch_sources = []
-        for item in items:
+    def process_batch(items):
+        nonlocal processed, total_tokens
+        encoded = tokenizer([_split_text_source(x)[0] for x in items],
+                            add_special_tokens=False, padding=False, truncation=False)["input_ids"]
+        if len(encoded) != len(items):
+            raise ValueError("Tokenizer returned a different number of documents")
+        for item, ids in zip(items, encoded):
+            if max_tokens is not None and total_tokens >= max_tokens:
+                break
             text, source = _split_text_source(item)
-            batch_texts.append(text)
-            batch_sources.append(source)
-        encoded = tokenizer(
-            batch_texts,
-            add_special_tokens=False,
-            padding=False,
-            truncation=False,
-        )
-        input_ids_batch = encoded["input_ids"]
-        
-        # Free memory of strings and tokenizer dictionary early
-        del batch_texts
-        del encoded
-        
-        for i in range(len(input_ids_batch)):
-            token_ids = input_ids_batch[i]
-            source = batch_sources[i]
-            
-            # Release reference to allow garbage collection of this token list
-            # once append_sequence is done processing it.
-            input_ids_batch[i] = None
-            
-            if not token_ids:
-                continue
-            source_id = source_id_for(source)
-            texts_processed += 1
-            append_sequence(token_ids, source_id)
-            if len(current_chunks) >= chunks_per_shard:
-                flush_shard()
+            name = source or "unknown"
+            if ids:
+                tokens = list(ids) + [eos]
+                if any(t < 0 or t >= vocab_size for t in tokens):
+                    raise ValueError("Tokenizer returned token outside its vocabulary")
+                if max_tokens is not None:
+                    tokens = tokens[:max_tokens - total_tokens]
+                if name not in source_ids:
+                    if len(source_ids) >= 255:
+                        raise ValueError("Too many source types for uint8 source ids")
+                    source_ids[name] = len(source_ids) + 1
+                    sources[source_ids[name]] = name
+                source_id = source_ids[name]
+                for offset in range(0, len(tokens), seq_len):
+                    # Slices also account for a partial buffer from previous documents.
+                    remaining = tokens[offset:offset + seq_len]
+                    while remaining:
+                        take = min(seq_len - len(buffer), len(remaining))
+                        buffer.extend(remaining[:take]); source_buffer.extend([source_id] * take)
+                        remaining = remaining[take:]
+                        if len(buffer) == seq_len:
+                            emit(seq_len)
+                total_tokens += len(tokens)
+                token_counts[name] += len(tokens)
+            processed += 1  # Empty documents still advance the input cursor.
+            if len(rows) >= chunks_per_shard:
+                checkpoint()
 
-    import queue
-    import threading
-
-    batch_queue = queue.Queue(maxsize=3)
-
-    def producer():
-        local_batch = []
-        local_chars = 0
-        try:
-            for item in texts:
-                local_batch.append(item)
-                text, _ = _split_text_source(item)
-                local_chars += len(text)
-                
-                if len(local_batch) >= batch_size or local_chars >= MAX_CHARS_PER_BATCH:
-                    batch_queue.put(local_batch)
-                    local_batch = []
-                    local_chars = 0
-            if local_batch:
-                batch_queue.put(local_batch)
-        finally:
-            batch_queue.put(None)
-
-    producer_thread = threading.Thread(target=producer, daemon=True)
-    producer_thread.start()
-
-    items_iter = tqdm(desc="Batch tokenizing", disable=not show_progress, initial=texts_processed)
-    
-    while True:
-        batch = batch_queue.get()
-        if batch is None:
-            break
-        process_batch(batch)
-        items_iter.update(len(batch))
-        
-    items_iter.close()
-    producer_thread.join()
-
-    if buffer and len(buffer) >= seq_len // 2:
-        while len(buffer) < seq_len:
-            buffer.append(pad_token_id)
-            source_buffer.append(source_buffer[-1] if source_buffer else source_id_for("unknown"))
-        emit_current_chunk()
-
-    flush_shard()
-    manifest.update({
-        "complete": True,
-        "texts_processed": texts_processed,
-        "total_chunks": total_chunks,
-        "total_tokens": total_chunks * seq_len,
-        "shards": shards,
-        "source_id_to_name": {str(k): v for k, v in source_id_to_name.items()},
-        "source_chunk_counts": dict(source_chunk_counts),
-        "source_token_counts": dict(source_token_counts),
-        "pending_buffer": [],
-        "pending_source_buffer": [],
-    })
-    _write_token_cache_manifest(cache_path, manifest)
-    logger.info(
-        "Token cache complete: %s texts -> %s chunks (%s tokens), shards=%s",
-        texts_processed,
-        total_chunks,
-        f"{total_chunks * seq_len:,}",
-        len(shards),
-    )
+    pending = []
+    chars = 0
+    progress = tqdm(desc="Batch tokenizing", disable=not show_progress, initial=processed)
+    try:
+        for item in _skip_items(iter(texts), processed):
+            if max_tokens is not None and total_tokens >= max_tokens:
+                break
+            pending.append(item); chars += len(_split_text_source(item)[0])
+            if len(pending) >= batch_size or chars >= 30_000_000:
+                process_batch(pending); progress.update(len(pending))
+                pending = []; chars = 0
+        if pending:
+            process_batch(pending)
+    except Exception:
+        # Pending un-tokenized documents are replayed from the saved cursor.
+        checkpoint()
+        raise
+    finally:
+        progress.close()
+    if buffer:
+        emit(len(buffer))
+    checkpoint(complete=True)
     return manifest
 
 
 def pack_and_tokenize_to_memmap(
-    texts: Iterator[TextOrSource],
-    tokenizer,
-    seq_len: int = 1024,
-    cache_dir: str = "./output/token_cache",
-    show_progress: bool = True,
+    texts: Iterator[TextOrSource], tokenizer, seq_len: int = 1024,
+    cache_dir: str = "./output/token_cache", show_progress: bool = True,
 ) -> tuple:
-    """
-    Tokenize, pack, and write chunks to a numpy memmap file.
-    
-    Uses the same concatenate-then-chunk logic as pack_and_tokenize(),
-    but stores results on disk as a memory-mapped numpy array.
-    RAM usage is O(buffer) during tokenization, O(1) during training.
-    
-    Args:
-        texts: Iterator of text strings
-        tokenizer: HuggingFace tokenizer with encode() method
-        seq_len: Target sequence length for each chunk
-        cache_dir: Directory to write memmap and metadata files
-        show_progress: Show tqdm progress bar
-        
-    Returns:
-        Tuple of (memmap_path: str, num_chunks: int)
-    """
-    import json
-    import numpy as np
-    from pathlib import Path
-    
-    Path(cache_dir).mkdir(parents=True, exist_ok=True)
-    memmap_path = str(Path(cache_dir) / "packed_tokens.bin")
-    meta_path = str(Path(cache_dir) / "metadata.json")
-    source_ids_path = str(Path(cache_dir) / "source_ids.bin")
-    
-    eos_token_id = tokenizer.eos_token_id
-    if eos_token_id is None:
-        eos_token_id = tokenizer.pad_token_id or 0
-        logger.warning(f"No EOS token found, using token ID {eos_token_id}")
-    
-    pad_token_id = tokenizer.pad_token_id or eos_token_id
-    
-    # Jamba2 uses vocab_size=65536, which still fits into uint16 IDs (0..65535).
-    dtype = np.uint16 if tokenizer.vocab_size <= 65536 else np.uint32
-    
-    buffer = []
-    source_buffer = []
-    texts_processed = 0
-    num_chunks = 0
-    source_name_to_id = {}
-    source_id_to_name = {}
-    source_chunk_counts = Counter()
-    source_token_counts = Counter()
-    saw_sources = False
-    
-    texts_iter = tqdm(texts, desc="Tokenizing", disable=not show_progress)
-
-    with open(memmap_path, "wb") as token_f, open(source_ids_path, "wb") as source_f:
-        for item in texts_iter:
-            text, source = _split_text_source(item)
-            if source is not None:
-                saw_sources = True
-                if source not in source_name_to_id:
-                    source_id = len(source_name_to_id) + 1
-                    source_name_to_id[source] = source_id
-                    source_id_to_name[source_id] = source
-            else:
-                source_id = 0
-
-            tokens = tokenizer.encode(text, add_special_tokens=False)
-
-            if not tokens:
-                continue
-
-            texts_processed += 1
-            buffer.extend(tokens)
-            buffer.append(eos_token_id)
-            source_buffer.extend([source_id] * (len(tokens) + 1))
-
-            while len(buffer) >= seq_len:
-                chunk = np.array(buffer[:seq_len], dtype=dtype)
-                token_f.write(chunk.tobytes())
-
-                if saw_sources:
-                    counts = Counter(source_buffer[:seq_len])
-                    majority_source_id = counts.most_common(1)[0][0]
-                    source_f.write(np.array([majority_source_id], dtype=np.uint8).tobytes())
-                    source_name = source_id_to_name.get(majority_source_id, "unknown")
-                    source_chunk_counts[source_name] += 1
-                    for chunk_source_id, count in counts.items():
-                        source_token_counts[source_id_to_name.get(chunk_source_id, "unknown")] += count
-
-                num_chunks += 1
-                buffer = buffer[seq_len:]
-                source_buffer = source_buffer[seq_len:]
-
-        if buffer and len(buffer) >= seq_len // 2:
-            while len(buffer) < seq_len:
-                buffer.append(pad_token_id)
-                source_buffer.append(source_buffer[-1] if source_buffer else 0)
-            chunk = np.array(buffer[:seq_len], dtype=dtype)
-            token_f.write(chunk.tobytes())
-            if saw_sources:
-                counts = Counter(source_buffer[:seq_len])
-                majority_source_id = counts.most_common(1)[0][0]
-                source_f.write(np.array([majority_source_id], dtype=np.uint8).tobytes())
-                source_name = source_id_to_name.get(majority_source_id, "unknown")
-                source_chunk_counts[source_name] += 1
-                for chunk_source_id, count in counts.items():
-                    source_token_counts[source_id_to_name.get(chunk_source_id, "unknown")] += count
-            num_chunks += 1
-
-    if not saw_sources and Path(source_ids_path).exists():
-        Path(source_ids_path).unlink()
-
-    if num_chunks == 0:
-        logger.error("No chunks produced from tokenization!")
-        return memmap_path, 0
-
-    file_size_mb = num_chunks * seq_len * np.dtype(dtype).itemsize / 1e6
-    metadata = {
-        "num_chunks": num_chunks,
-        "seq_len": seq_len,
-        "dtype": np.dtype(dtype).name,
-        "texts_processed": texts_processed,
-        "total_tokens": num_chunks * seq_len,
-        "file_size_mb": round(file_size_mb, 1),
-    }
-    if saw_sources:
-        metadata.update({
-            "source_ids_path": source_ids_path,
-            "source_id_to_name": {str(k): v for k, v in source_id_to_name.items()},
-            "source_chunk_counts": dict(source_chunk_counts),
-            "source_token_counts": dict(source_token_counts),
-        })
-
-    with open(meta_path, "w") as f:
-        json.dump(metadata, f, indent=2)
-
-    logger.info(
-        f"Memmap packing complete: {texts_processed} texts -> {num_chunks} chunks "
-        f"(seq_len={seq_len}, ~{num_chunks * seq_len:,} tokens, "
-        f"file size: {file_size_mb:.1f} MB)"
+    """Legacy single-file interface using the validated, masked v2 packer."""
+    import shutil
+    root = Path(cache_dir)
+    manifest = pack_and_tokenize_to_sharded_cache(
+        texts, tokenizer, seq_len=seq_len, cache_dir=str(root / "sharded"),
+        force_rebuild=True, show_progress=show_progress,
     )
-
-    return memmap_path, num_chunks
+    files = {"path": "packed_tokens.bin", "source_ids_path": "source_ids.bin",
+             "token_source_ids_path": "token_source_ids.bin",
+             "valid_lengths_path": "valid_lengths.bin"}
+    for key, name in files.items():
+        with (root / name).open("wb") as out:
+            for shard in manifest["shards"]:
+                with (root / "sharded" / shard[key]).open("rb") as src:
+                    shutil.copyfileobj(src, out)
+    metadata = dict(manifest)
+    metadata["num_chunks"] = manifest["total_chunks"]
+    for key, name in files.items():
+        metadata[key] = str((root / name).resolve())
+    (root / "metadata.json").write_text(json.dumps(metadata, indent=2))
+    return str(root / files["path"]), manifest["total_chunks"]

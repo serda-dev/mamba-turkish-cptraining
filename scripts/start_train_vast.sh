@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/workspace/mamba-cpt-tr}"
-CONFIG_PATH="${CONFIG_PATH:-configs/cpt_4phase.yaml}"
+CONFIG_PATH="${CONFIG_PATH:-configs/cpt_classified.yaml}"
 OUTPUT_DIR="${OUTPUT_DIR:-output}"
 AUTO_RESUME="${AUTO_RESUME:-1}"
 HF_DATASET_ID="${HF_DATASET_ID:-}"

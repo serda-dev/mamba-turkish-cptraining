@@ -1,0 +1,14 @@
+[
+ {"id":"tr1","category":"tr_comprehension","prompt":"Metin: Ece kitabını salı günü Deniz'e ödünç verdi. Deniz kitabı cuma günü geri getirdi. Kitabı geri getiren kim? Yalnızca {\"cevap\":\"kişi adı\"} biçiminde JSON yaz.","expected":{"cevap":"Deniz"}},
+ {"id":"tr2","category":"tr_comprehension","prompt":"Metin: Tren 09:20'de kalkacaktı fakat 15 dakika gecikti. Gerçek kalkış saati nedir? Yalnızca {\"saat\":\"SS:DD\"} JSON yaz.","expected":{"saat":"09:35"}},
+ {"id":"tr3","category":"tr_grounding","prompt":"Verilen kayda göre cevapla: Elif Ankara'da yaşıyor; Can İzmir'de yaşıyor. Elif'in yaşadığı şehir nedir? Yalnızca {\"sehir\":\"şehir\"} JSON yaz.","expected":{"sehir":"Ankara"}},
+ {"id":"tr4","category":"tr_grounding","prompt":"Verilen metin: Ada bir mühendis. Yaşı belirtilmemiş. Ada'nın yaşını tahmin etme; bilinmiyorsa null kullan. Yalnızca {\"yas\":null} biçiminde JSON yaz.","expected":{"yas":null}},
+ {"id":"math1","category":"math","prompt":"Bir kutuda 7 kırmızı, 5 mavi bilye var. Toplam kaç bilye var? Yalnızca {\"sonuc\":tam sayı} JSON yaz.","expected":{"sonuc":12}},
+ {"id":"math2","category":"math","prompt":"Üç kitap 45 TL tutuyor. Kitapların fiyatı eşit. Bir kitap kaç TL? Yalnızca {\"sonuc\":tam sayı} JSON yaz.","expected":{"sonuc":15}},
+ {"id":"en1","category":"english_retention","prompt":"Read: Maya gave Leo a blue notebook. Leo put it in his bag. What color is the notebook? Reply only with JSON {\"color\":\"color name\"}.","expected":{"color":"blue"}},
+ {"id":"en2","category":"english_retention","prompt":"Read: Noah has no pets. Does Noah have a cat? Reply only with JSON {\"has_cat\":boolean}.","expected":{"has_cat":false}},
+ {"id":"fmt1","category":"structured_extraction","prompt":"Kaydı dönüştür: ürün=kalem; adet=3; stokta=evet. Yalnızca ürün (string), adet (integer), stokta (boolean) alanlarını içeren JSON yaz. Alan adları urun, adet, stokta olsun.","expected":{"urun":"kalem","adet":3,"stokta":true}},
+ {"id":"fmt2","category":"structured_extraction","prompt":"Metin: Toplantıya Ali ve Ece katıldı. İsimleri metindeki sıralarıyla bir listeye koy. Yalnızca {\"isimler\":[...]} JSON yaz.","expected":{"isimler":["Ali","Ece"]}},
+ {"id":"fmt3","category":"instruction","prompt":"Yalnızca {\"durum\":\"tamam\"} JSON yaz. Açıklama veya Markdown kod bloğu ekleme.","expected":{"durum":"tamam"}},
+ {"id":"code1","category":"code_retention","prompt":"Python: x = [2, 4, 6]; print(sum(x)). What is printed? Reply only with JSON {\"result\":integer}.","expected":{"result":12}}
+]

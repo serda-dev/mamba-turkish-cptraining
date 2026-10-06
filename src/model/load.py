@@ -2,6 +2,7 @@
 
 import importlib.util
 import logging
+import json
 from typing import Optional, Tuple
 
 import torch
@@ -40,10 +41,10 @@ def resolve_attn_implementation(attn_implementation: str, device: Optional[str] 
     return "sdpa"
 
 
-def load_tokenizer(tokenizer_name_or_path: str) -> AutoTokenizer:
+def load_tokenizer(tokenizer_name_or_path: str, revision: Optional[str] = None) -> AutoTokenizer:
     """Load tokenizer for a pretrained causal LM checkpoint."""
     logger.info(f"Loading tokenizer: {tokenizer_name_or_path}")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path, revision=revision)
 
     if tokenizer.pad_token is None:
         if tokenizer.eos_token is not None:
@@ -68,6 +69,54 @@ def load_tokenizer(tokenizer_name_or_path: str) -> AutoTokenizer:
     return tokenizer
 
 
+def validate_append_only_tokenizer(tokenizer, reference_tokenizer) -> None:
+    """Reject vocabulary replacements: pretrained rows must retain their token IDs.
+
+    The reference comes from the model checkpoint at the same revision. Appended
+    tokens are allowed; training a new tokenizer with reassigned IDs is not.
+    """
+    reference_vocab = reference_tokenizer.get_vocab()
+    candidate_vocab = tokenizer.get_vocab()
+    if len(tokenizer) < len(reference_tokenizer):
+        raise ValueError("Tokenizer vocabulary shrinks the pretrained tokenizer")
+    changed = [token for token, token_id in reference_vocab.items()
+               if candidate_vocab.get(token) != token_id]
+    if changed:
+        raise ValueError(
+            "Unsupported tokenizer ID remap or removed base tokens: "
+            + repr(changed[:5])
+        )
+    base_size = len(reference_tokenizer)
+    if any(token_id < base_size for token, token_id in candidate_vocab.items()
+           if token not in reference_vocab):
+        raise ValueError("New tokenizer tokens must be appended after the base vocabulary")
+    ids = list(candidate_vocab.values())
+    if len(set(ids)) != len(ids) or set(ids) != set(range(len(tokenizer))):
+        raise ValueError("Tokenizer vocabulary IDs must be unique and contiguous")
+
+    # Vocabulary IDs alone do not guarantee identical segmentation: a rebuilt
+    # BPE with reordered merges can radically change the input distribution.
+    if hasattr(tokenizer, "backend_tokenizer") and hasattr(reference_tokenizer, "backend_tokenizer"):
+        candidate = json.loads(tokenizer.backend_tokenizer.to_str())
+        reference = json.loads(reference_tokenizer.backend_tokenizer.to_str())
+        for field in ("normalizer", "pre_tokenizer", "decoder", "post_processor"):
+            if candidate.get(field) != reference.get(field):
+                raise ValueError(f"Tokenizer {field} differs from pretrained tokenizer")
+        base_model, new_model = reference["model"], candidate["model"]
+        base_options = {k: v for k, v in base_model.items() if k not in ("vocab", "merges")}
+        new_options = {k: v for k, v in new_model.items() if k not in ("vocab", "merges")}
+        if base_options != new_options:
+            raise ValueError("Tokenizer model settings differ from pretrained tokenizer")
+        if base_model.get("type") == "BPE":
+            base_merges = base_model.get("merges", [])
+            if new_model.get("merges", [])[:len(base_merges)] != base_merges:
+                raise ValueError("Tokenizer BPE merges must retain the pretrained merge prefix")
+        new_added = {item["content"]: item for item in candidate.get("added_tokens", [])}
+        for item in reference.get("added_tokens", []):
+            if new_added.get(item["content"]) != item:
+                raise ValueError("Tokenizer altered a pretrained added/special token: " + item["content"])
+
+
 def load_model(
     model_name: str,
     tokenizer=None,
@@ -78,6 +127,7 @@ def load_model(
     use_cache: bool = False,
     device_map: Optional[str] = None,
     low_cpu_mem_usage: bool = True,
+    revision: Optional[str] = None,
 ) -> torch.nn.Module:
     """Load a causal LM with Jamba-specific config overrides."""
     logger.info(f"Loading model: {model_name}")
@@ -87,7 +137,10 @@ def load_model(
         device = "cuda" if torch.cuda.is_available() else "cpu"
     resolved_attn_implementation = resolve_attn_implementation(attn_implementation, device)
 
-    config = AutoConfig.from_pretrained(model_name)
+    config = AutoConfig.from_pretrained(model_name, revision=revision)
+    if tokenizer is not None:
+        reference_tokenizer = AutoTokenizer.from_pretrained(model_name, revision=revision)
+        validate_append_only_tokenizer(tokenizer, reference_tokenizer)
     if hasattr(config, "use_mamba_kernels"):
         config.use_mamba_kernels = use_mamba_kernels
     if hasattr(config, "use_cache"):
@@ -108,6 +161,7 @@ def load_model(
 
     model_load_kwargs = {
         "config": config,
+        "revision": revision,
         "dtype": dtype,
         "attn_implementation": resolved_attn_implementation,
         "low_cpu_mem_usage": low_cpu_mem_usage,
@@ -123,12 +177,14 @@ def load_model(
     if tokenizer is not None and len(tokenizer) != model.get_input_embeddings().num_embeddings:
         old_size = model.get_input_embeddings().num_embeddings
         new_size = len(tokenizer)
+        if new_size < old_size:
+            raise ValueError(f"Tokenizer would shrink checkpoint embeddings: {old_size} -> {new_size}")
         logger.info(
             "Resizing token embeddings to match custom tokenizer: %s -> %s",
             old_size,
             new_size,
         )
-        model.resize_token_embeddings(new_size)
+        model.resize_token_embeddings(new_size, mean_resizing=True)
 
     if device_map is None and device is not None:
         model = model.to(device)
@@ -154,9 +210,13 @@ def load_model_and_tokenizer(
     use_cache: bool = False,
     device_map: Optional[str] = None,
     low_cpu_mem_usage: bool = True,
+    revision: Optional[str] = None,
 ) -> Tuple[torch.nn.Module, AutoTokenizer]:
     """Convenience function to load both model and tokenizer."""
-    tokenizer = load_tokenizer(tokenizer_name_or_path or model_name)
+    tokenizer = load_tokenizer(
+        tokenizer_name_or_path or model_name,
+        revision=revision if not tokenizer_name_or_path or tokenizer_name_or_path == model_name else None,
+    )
     model = load_model(
         model_name=model_name,
         tokenizer=tokenizer,
@@ -167,5 +227,6 @@ def load_model_and_tokenizer(
         use_cache=use_cache,
         device_map=device_map,
         low_cpu_mem_usage=low_cpu_mem_usage,
+        revision=revision,
     )
     return model, tokenizer

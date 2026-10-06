@@ -30,7 +30,7 @@ def find_latest_checkpoint(checkpoint_dir: str, phase_id: Optional[int] = None) 
     metadata = read_latest_metadata(checkpoint_dir)
     if metadata and metadata.get("latest_checkpoint"):
         latest = Path(metadata["latest_checkpoint"])
-        if latest.exists() and (phase_id is None or int(metadata.get("phase", phase_id)) == int(phase_id)):
+        if (latest / "training_state.pt").is_file() and (phase_id is None or metadata.get("phase") == phase_id):
             return str(latest)
 
     root = Path(checkpoint_dir)
@@ -49,6 +49,9 @@ def find_latest_checkpoint(checkpoint_dir: str, phase_id: Optional[int] = None) 
         if final.exists():
             candidates.append(final)
         candidates.extend(search_root.glob("step_*"))
+        candidates.extend(search_root.glob("stopped_step_*"))
+        candidates.extend(search_root.glob("final_*"))
+    candidates = [path for path in candidates if (path / "training_state.pt").is_file()]
     if not candidates:
         return None
     return str(max(candidates, key=lambda path: path.stat().st_mtime))
