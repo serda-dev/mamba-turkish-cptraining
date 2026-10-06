@@ -1,5 +1,7 @@
 # Jamba2 3B Turkish CPT
 
+> Current data and training handoff: [docs/CPT_HANDOFF_2026-10-06.md](docs/CPT_HANDOFF_2026-10-06.md). The curriculum and dataset examples below describe the earlier run and must be reconciled with the new classified Turkish corpus before the next CPT job.
+
 This repository runs continued pre-training of `ai21labs/AI21-Jamba2-3B` for Turkish adaptation. The primary workflow is now a 4-phase Turkish + English curriculum that keeps the existing extended Turkish tokenizer, low-RAM token cache, frequent checkpointing, Docker/Vast.ai execution support, and resume behavior.
 
 The extended tokenizer in `./customtokenizer` is intentional. Model loading resizes embeddings when the tokenizer vocab differs from the base Jamba2 tokenizer.
