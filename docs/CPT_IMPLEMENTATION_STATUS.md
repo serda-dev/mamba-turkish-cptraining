@@ -69,3 +69,37 @@ CPU regression suite uses local fixtures, mocked model load/eval, real torch
 optimizer updates and interrupted stochastic resume. CPU runtime here is
 PyTorch 2.14.1+cpu with transformers 4.56.1; production remains pinned separately.
 The GPU production runtime is not verified by these CPU results.
+
+## Follow-up producer inspection — 2026-10-06
+
+The user confirmed `serda-dev/linguai-dataset-quality` as the classification
+project. Re-inspected current main `8ce7c69855e018fb697c7c6872347a4d354d171a`
+and all six other exposed branches. This snapshot's README explicitly places
+student training outside the implemented scope; its export writes
+`original_text`, `teacher_label_json`, `route`, and `split=train`, rather than the
+handoff's full-corpus `source_id`, `row_ordinal`, `predicted_label_json`,
+`predicted_route`, and `input_truncated` schema. The main code and those branches
+contain no matching full-corpus student inference writer.
+
+Confirmed source contracts:
+- `src/linguai_quality/contracts.py`: full UTF-8 text SHA-256; stable ID from
+  compact Unicode JSON `[source, revision, config, split, ordinal, text_sha256]`.
+- `src/linguai_quality/runs.py`: raw source is repo/config/split at pinned revision;
+  ingestion uses original text without whitespace normalization. Its separate
+  content-family whitespace hash is not document_hash.
+- `src/linguai_quality/export.py`: bounded teacher export preserves text hash and
+  source coordinates; it is not the 214M-row prediction writer.
+
+Four independent literal expected-value vectors were generated from the pinned
+upstream identity function and added under `tests/fixtures/upstream_identity_v1.json`.
+Tests cover Turkish Unicode, preserved whitespace, decomposed Unicode and ordinal
+changes. These validate CPT compatibility with the confirmed control-plane
+contract, but cannot prove the unseen full-corpus writer reused that contract.
+
+The separately located `serda-dev/linguai-teacher-model` main README describes a
+Qwen inference/API service and explicitly excludes corpus/database/routing storage.
+Its purpose does not resolve the missing student writer. No relabeling or teacher
+training was launched. The remaining identity gate is actual producer code or
+representative real prediction rows matched to pinned raw originals.
+
+Validation after this follow-up: 88 CPU regression tests passed.

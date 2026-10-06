@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -137,3 +138,13 @@ def test_cosmos_explicit_review_evidence_unlocks_only_clean_inputs(tmp_path):
     config, settings, _ = fixture_config(tmp_path, {'cosmos': [('x', 'KEEP'), ('y', 'MODEL_REPAIR')]})
     settings.update(allow_cosmos=True, cosmos_review_evidence='review-report.json')
     assert list(iter_classified_texts(config, 'all')) == ['x']
+
+
+@pytest.mark.parametrize('vector', json.loads(
+    (Path(__file__).parent / 'fixtures' / 'upstream_identity_v1.json').read_text(encoding='utf-8')
+)['vectors'])
+def test_identity_matches_independent_pinned_upstream_vectors(vector):
+    # Expected values came from upstream contracts.py, not this module's helper.
+    from src.data.classified import document_hash
+    assert document_hash(vector['text']) == vector['document_hash']
+    assert document_id(vector['source'], vector['ordinal'], vector['text']) == vector['doc_id']

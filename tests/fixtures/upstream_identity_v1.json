@@ -1,0 +1,55 @@
+{
+  "contract_url": "https://github.com/serda-dev/linguai-dataset-quality/blob/8ce7c69855e018fb697c7c6872347a4d354d171a/src/linguai_quality/contracts.py",
+  "function_source_sha256": "adaef9f4762663bc33e6bd3b09b018adafbf1779c05154ac37cabfee70ce5cd2",
+  "scope": "confirmed control-plane identity; not confirmation of full-corpus student writer",
+  "vectors": [
+    {
+      "source": {
+        "repo": "HuggingFaceFW/fineweb-2",
+        "revision": "af9c13333eb981300149d5ca60a8e9d659b276b9",
+        "config": "tur_Latn",
+        "split": "train"
+      },
+      "ordinal": 0,
+      "text": "Türkçe: İstanbul, ığüşöç.\n",
+      "document_hash": "e27d1ef3adef93e249f42e06bbe5bd62d82c146f47788dc57c238ce8d41da659",
+      "doc_id": "doc_0f13a19651e05fc3047c02c95aca24241d7ac92b4d44d27d2a46d5f573d1a8d3"
+    },
+    {
+      "source": {
+        "repo": "HuggingFaceFW/fineweb-2",
+        "revision": "af9c13333eb981300149d5ca60a8e9d659b276b9",
+        "config": "tur_Latn",
+        "split": "train"
+      },
+      "ordinal": 1,
+      "text": "Türkçe: İstanbul, ığüşöç.\n",
+      "document_hash": "e27d1ef3adef93e249f42e06bbe5bd62d82c146f47788dc57c238ce8d41da659",
+      "doc_id": "doc_a92f89d5b7d372ae7c8de9111f165f58537af09e521cb8a5355c7744f464bea3"
+    },
+    {
+      "source": {
+        "repo": "HuggingFaceFW/fineweb-2",
+        "revision": "af9c13333eb981300149d5ca60a8e9d659b276b9",
+        "config": "tur_Latn",
+        "split": "train"
+      },
+      "ordinal": 0,
+      "text": "  İki boşluk ve sonda boşluk  ",
+      "document_hash": "3888b00241d60f23be6eb60fc8e07881018c545f0780968a2fbd93e734945389",
+      "doc_id": "doc_207eec9e507ef523fac91f4b5dd3f0d255d1129026f8af01a88917041e9698f9"
+    },
+    {
+      "source": {
+        "repo": "HuggingFaceFW/fineweb-2",
+        "revision": "af9c13333eb981300149d5ca60a8e9d659b276b9",
+        "config": "tur_Latn",
+        "split": "train"
+      },
+      "ordinal": 7,
+      "text": "şeker / şeker",
+      "document_hash": "d7cb2a7f12103c21220ff627b87ccc9683b7b636a32293d9d63e66f41f258ee7",
+      "doc_id": "doc_8ac764c32285f2068481a6ebeca119a9ed61dacc904096b59967271587f9b28c"
+    }
+  ]
+}
