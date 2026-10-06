@@ -1,131 +1,112 @@
 #!/usr/bin/env python3
-"""
-Inference script for Mamba CPT model.
-
-This script loads a continued-pretrained Mamba model and generates text
-from given prompts. It supports both single and multiple prompts.
-
-Usage:
-    python -m src.eval.infer --checkpoint_dir ./output/checkpoints/final
-    python -m src.eval.infer --checkpoint_dir ./output/checkpoints/final --prompt "Merhaba dünya"
-"""
+"""Inference script for local or Hugging Face Jamba2 checkpoints."""
 
 import argparse
 import sys
 from pathlib import Path
 
 import torch
-from transformers import AutoTokenizer, MambaForCausalLM
+
+from src.model.load import load_model_and_tokenizer
 
 
-# =============================================================================
-# Configuration Constants
-# =============================================================================
-
-# Base model for tokenizer (CPT did not modify the tokenizer)
-BASE_MODEL_ID = "state-spaces/mamba-370m-hf"
-
-# Default generation parameters (tuned for creative Turkish text generation)
+DEFAULT_MODEL_NAME = "serda-dev/Jamba2-3B-Turkish"
 DEFAULT_MAX_NEW_TOKENS = 128
 DEFAULT_TEMPERATURE = 0.8
 DEFAULT_TOP_P = 0.92
 DEFAULT_TOP_K = 50
 DEFAULT_REPETITION_PENALTY = 1.1
-
-# Default Turkish prompts for sanity checking
 DEFAULT_PROMPTS = [
     "Türkiye'de yazılım mühendisliği öğrencisi olmak",
     "Yapay zeka ve büyük dil modelleri hakkında kısa bir açıklama",
     "Bir orta çağ fantastik evreninde geçen kısa bir hikaye",
 ]
+DEFAULT_SYSTEM_PROMPT = (
+    "Sen akıcı ve doğal Türkçe yazan bir yardımcı asistansın. "
+    "Yanıtların açık, tutarlı ve doğrudan olsun."
+)
 
 
-# =============================================================================
-# Core Functions
-# =============================================================================
+def get_runtime_device(requested_device: str | None, device_map: str | None) -> str | None:
+    """Resolve the preferred runtime placement for model loading."""
+    if device_map is not None:
+        print(f"[INFO] Using device_map={device_map}")
+        return None
 
-def get_device() -> torch.device:
-    """Get the best available device (CUDA preferred)."""
+    if requested_device:
+        return requested_device
+
     if torch.cuda.is_available():
-        device = torch.device("cuda")
         print(f"[INFO] Using GPU: {torch.cuda.get_device_name(0)}")
         print(f"[INFO] GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
-    else:
-        device = torch.device("cpu")
-        print("[WARNING] CUDA not available, using CPU (this will be slow!)")
-    return device
+        return "cuda"
+
+    print("[WARNING] CUDA not available, using CPU")
+    return "cpu"
 
 
-def load_tokenizer(base_model_id: str = BASE_MODEL_ID) -> AutoTokenizer:
-    """
-    Load tokenizer from the base model.
-    
-    The tokenizer was NOT modified during CPT, so we load it from the
-    original base model to ensure compatibility.
-    """
-    print(f"[INFO] Loading tokenizer from: {base_model_id}")
-    tokenizer = AutoTokenizer.from_pretrained(
-        base_model_id,
-        trust_remote_code=True,
+def get_model_input_device(model: torch.nn.Module) -> torch.device:
+    """Find the device where input tensors should be placed."""
+    if hasattr(model, "device") and getattr(model, "device").type != "meta":
+        return model.device
+    return next(model.parameters()).device
+
+
+def build_prompt(tokenizer, prompt: str, system_prompt: str | None) -> str:
+    """Mirror the original Jamba2 chat-style call when a chat template is available."""
+    if getattr(tokenizer, "chat_template", None):
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        return tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=False,
+        )
+    return prompt
+
+
+def load_inference_artifacts(
+    model_name_or_path: str,
+    tokenizer_name_or_path: str | None,
+    torch_dtype: str,
+    requested_device: str | None,
+    device_map: str | None,
+    attn_implementation: str,
+) -> tuple[torch.nn.Module, object]:
+    runtime_device = get_runtime_device(requested_device, device_map)
+    print(f"[INFO] Loading model from: {model_name_or_path}")
+    if tokenizer_name_or_path:
+        print(f"[INFO] Loading tokenizer from: {tokenizer_name_or_path}")
+
+    model, tokenizer = load_model_and_tokenizer(
+        model_name=model_name_or_path,
+        tokenizer_name_or_path=tokenizer_name_or_path,
+        torch_dtype=torch_dtype,
+        device=runtime_device,
+        device_map=device_map,
+        attn_implementation=attn_implementation,
+        use_cache=True,
     )
-    
-    # Ensure pad token is set (Mamba uses eos_token as pad_token)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        print("[INFO] Set pad_token = eos_token")
-    
-    print(f"[INFO] Tokenizer vocab size: {len(tokenizer)}")
-    return tokenizer
-
-
-def load_model(checkpoint_dir: str, device: torch.device) -> MambaForCausalLM:
-    """
-    Load the CPT model from a local checkpoint directory.
-    
-    Args:
-        checkpoint_dir: Path to the checkpoint directory containing model.safetensors
-        device: Target device (cuda or cpu)
-    
-    Returns:
-        Loaded model in eval mode on the target device
-    """
-    checkpoint_path = Path(checkpoint_dir)
-    
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Checkpoint directory not found: {checkpoint_path}")
-    
-    if not (checkpoint_path / "model.safetensors").exists():
-        raise FileNotFoundError(f"model.safetensors not found in: {checkpoint_path}")
-    
-    print(f"[INFO] Loading model from: {checkpoint_path}")
-    
-    # Load model - use bfloat16 to match training dtype and save memory
-    model = MambaForCausalLM.from_pretrained(
-        checkpoint_path,
-        torch_dtype=torch.bfloat16,
-        device_map=None,  # We'll move to device manually
-        trust_remote_code=True,
-    )
-    
-    # Move to device and set to eval mode
-    model = model.to(device)
     model.eval()
-    
-    # Print model info
-    num_params = sum(p.numel() for p in model.parameters())
-    print(f"[INFO] Model loaded successfully")
-    print(f"[INFO] Model parameters: {num_params / 1e6:.2f}M")
-    print(f"[INFO] Model dtype: {next(model.parameters()).dtype}")
-    print(f"[INFO] Model device: {next(model.parameters()).device}")
-    
-    return model
+
+    input_device = get_model_input_device(model)
+    print(f"[INFO] Model input device: {input_device}")
+    print(f"[INFO] Tokenizer size: {len(tokenizer)}")
+    if getattr(tokenizer, "chat_template", None):
+        print("[INFO] Chat template detected; prompts will use chat formatting")
+    else:
+        print("[INFO] No chat template found; prompts will be used as plain text")
+
+    return model, tokenizer
 
 
 def generate_text(
-    model: MambaForCausalLM,
-    tokenizer: AutoTokenizer,
+    model,
+    tokenizer,
     prompt: str,
-    device: torch.device,
+    system_prompt: str | None,
     max_new_tokens: int = DEFAULT_MAX_NEW_TOKENS,
     temperature: float = DEFAULT_TEMPERATURE,
     top_p: float = DEFAULT_TOP_P,
@@ -133,226 +114,156 @@ def generate_text(
     repetition_penalty: float = DEFAULT_REPETITION_PENALTY,
     do_sample: bool = True,
 ) -> str:
-    """
-    Generate text continuation for a given prompt.
-    
-    Args:
-        model: Loaded Mamba model
-        tokenizer: Loaded tokenizer
-        prompt: Input text prompt
-        device: Target device
-        max_new_tokens: Maximum number of new tokens to generate
-        temperature: Sampling temperature (higher = more creative)
-        top_p: Nucleus sampling probability
-        top_k: Top-k sampling
-        repetition_penalty: Penalty for repeating tokens
-        do_sample: Whether to use sampling (vs greedy)
-    
-    Returns:
-        Generated text (prompt + continuation)
-    """
-    # Tokenize input
+    rendered_prompt = build_prompt(tokenizer, prompt, system_prompt)
+    input_device = get_model_input_device(model)
+
     inputs = tokenizer(
-        prompt,
+        rendered_prompt,
         return_tensors="pt",
         padding=False,
         truncation=True,
-        max_length=512,  # Leave room for generation
+        max_length=2048,
     )
-    input_ids = inputs["input_ids"].to(device)
-    
-    # Generate
+    inputs = {k: v.to(input_device) for k, v in inputs.items()}
+
+    generation_kwargs = {
+        **inputs,
+        "max_new_tokens": max_new_tokens,
+        "repetition_penalty": repetition_penalty,
+        "do_sample": do_sample,
+        "pad_token_id": tokenizer.pad_token_id,
+        "eos_token_id": tokenizer.eos_token_id,
+        "use_cache": True,
+    }
+    if do_sample:
+        generation_kwargs.update({
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+        })
+
     with torch.no_grad():
-        outputs = model.generate(
-            input_ids=input_ids,
+        outputs = model.generate(**generation_kwargs)
+
+    prompt_length = inputs["input_ids"].shape[1]
+    completion_tokens = outputs[0][prompt_length:]
+    return tokenizer.decode(completion_tokens, skip_special_tokens=True).strip()
+
+
+def run_inference(
+    model_name_or_path: str,
+    tokenizer_name_or_path: str | None = None,
+    prompts: list[str] | None = None,
+    system_prompt: str | None = DEFAULT_SYSTEM_PROMPT,
+    max_new_tokens: int = DEFAULT_MAX_NEW_TOKENS,
+    temperature: float = DEFAULT_TEMPERATURE,
+    top_p: float = DEFAULT_TOP_P,
+    top_k: int = DEFAULT_TOP_K,
+    repetition_penalty: float = DEFAULT_REPETITION_PENALTY,
+    do_sample: bool = True,
+    torch_dtype: str = "bfloat16",
+    device: str | None = None,
+    device_map: str | None = None,
+    attn_implementation: str = "auto",
+) -> list[dict]:
+    prompts = prompts or DEFAULT_PROMPTS
+    model, tokenizer = load_inference_artifacts(
+        model_name_or_path=model_name_or_path,
+        tokenizer_name_or_path=tokenizer_name_or_path,
+        torch_dtype=torch_dtype,
+        requested_device=device,
+        device_map=device_map,
+        attn_implementation=attn_implementation,
+    )
+
+    results = []
+    for prompt in prompts:
+        generated = generate_text(
+            model=model,
+            tokenizer=tokenizer,
+            prompt=prompt,
+            system_prompt=system_prompt,
             max_new_tokens=max_new_tokens,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
             repetition_penalty=repetition_penalty,
             do_sample=do_sample,
-            pad_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id,
         )
-    
-    # Decode output
-    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    return generated_text
-
-
-def run_inference(
-    checkpoint_dir: str,
-    prompts: list[str] | None = None,
-    max_new_tokens: int = DEFAULT_MAX_NEW_TOKENS,
-    temperature: float = DEFAULT_TEMPERATURE,
-    top_p: float = DEFAULT_TOP_P,
-    do_sample: bool = True,
-) -> list[dict]:
-    """
-    Run inference on one or more prompts.
-    
-    Args:
-        checkpoint_dir: Path to the checkpoint directory
-        prompts: List of prompts (uses defaults if None)
-        max_new_tokens: Maximum tokens to generate
-        temperature: Sampling temperature
-        top_p: Nucleus sampling probability
-        do_sample: Whether to sample
-    
-    Returns:
-        List of dicts with 'prompt' and 'generated' keys
-    """
-    if prompts is None:
-        prompts = DEFAULT_PROMPTS
-    
-    # Setup
-    device = get_device()
-    tokenizer = load_tokenizer()
-    model = load_model(checkpoint_dir, device)
-    
-    print("\n" + "=" * 70)
-    print("STARTING INFERENCE")
-    print("=" * 70 + "\n")
-    
-    results = []
-    
-    for i, prompt in enumerate(prompts, 1):
-        print(f"[{i}/{len(prompts)}] Generating for prompt: \"{prompt[:50]}...\"")
-        print("-" * 50)
-        
-        generated = generate_text(
-            model=model,
-            tokenizer=tokenizer,
-            prompt=prompt,
-            device=device,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            do_sample=do_sample,
-        )
-        
-        results.append({
-            "prompt": prompt,
-            "generated": generated,
-        })
-        
-        # Print result
-        print(f"PROMPT: {prompt}")
-        print(f"\nGENERATED:\n{generated}")
-        print("\n" + "=" * 70 + "\n")
-    
+        results.append({"prompt": prompt, "generated": generated})
+        print(f"PROMPT: {prompt}\n")
+        print(f"GENERATED:\n{generated}\n")
+        print("=" * 70)
     return results
 
 
-# =============================================================================
-# CLI Entry Point
-# =============================================================================
-
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Run inference with a continued-pretrained Mamba model",
+        description="Run inference with a local checkpoint or Hugging Face Jamba model",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    
+    parser.add_argument("--model_name_or_path", type=str, default=DEFAULT_MODEL_NAME)
     parser.add_argument(
         "--checkpoint_dir",
         type=str,
-        default="./output/checkpoints/final",
-        help="Path to the checkpoint directory containing model.safetensors",
-    )
-    
-    parser.add_argument(
-        "--prompt",
-        type=str,
         default=None,
-        help="Single prompt to generate from (uses defaults if not provided)",
+        help="Backward-compatible alias for --model_name_or_path",
     )
-    
-    parser.add_argument(
-        "--prompts_file",
-        type=str,
-        default=None,
-        help="Path to a text file with prompts (one per line)",
-    )
-    
-    parser.add_argument(
-        "--max_new_tokens",
-        type=int,
-        default=DEFAULT_MAX_NEW_TOKENS,
-        help="Maximum number of new tokens to generate",
-    )
-    
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=DEFAULT_TEMPERATURE,
-        help="Sampling temperature (higher = more creative)",
-    )
-    
-    parser.add_argument(
-        "--top_p",
-        type=float,
-        default=DEFAULT_TOP_P,
-        help="Nucleus sampling probability",
-    )
-    
-    parser.add_argument(
-        "--no_sample",
-        action="store_true",
-        help="Use greedy decoding instead of sampling",
-    )
-    
+    parser.add_argument("--tokenizer_name_or_path", type=str, default=None)
+    parser.add_argument("--prompt", type=str, default=None)
+    parser.add_argument("--prompts_file", type=str, default=None)
+    parser.add_argument("--system_prompt", type=str, default=DEFAULT_SYSTEM_PROMPT)
+    parser.add_argument("--max_new_tokens", type=int, default=DEFAULT_MAX_NEW_TOKENS)
+    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
+    parser.add_argument("--top_p", type=float, default=DEFAULT_TOP_P)
+    parser.add_argument("--torch_dtype", type=str, default="bfloat16")
+    parser.add_argument("--device", type=str, default=None)
+    parser.add_argument("--device_map", type=str, default=None)
+    parser.add_argument("--attn_implementation", type=str, default="auto")
+    parser.add_argument("--top_k", type=int, default=DEFAULT_TOP_K)
+    parser.add_argument("--repetition_penalty", type=float, default=DEFAULT_REPETITION_PENALTY)
+    parser.add_argument("--no_sample", action="store_true")
     return parser.parse_args()
 
 
 def main():
-    """Main entry point."""
     args = parse_args()
-    
-    print("\n" + "=" * 70)
-    print("MAMBA CPT INFERENCE SCRIPT")
-    print("=" * 70)
-    print(f"Checkpoint: {args.checkpoint_dir}")
-    print(f"Max new tokens: {args.max_new_tokens}")
-    print(f"Temperature: {args.temperature}")
-    print(f"Top-p: {args.top_p}")
-    print(f"Sampling: {not args.no_sample}")
-    print("=" * 70 + "\n")
-    
-    # Determine prompts
+
+    model_name_or_path = args.checkpoint_dir or args.model_name_or_path
+    if model_name_or_path is None:
+        print("[ERROR] No model source was provided")
+        sys.exit(1)
+
     prompts = None
-    
     if args.prompt:
         prompts = [args.prompt]
-        print(f"[INFO] Using single prompt from CLI")
     elif args.prompts_file:
         prompts_path = Path(args.prompts_file)
         if not prompts_path.exists():
             print(f"[ERROR] Prompts file not found: {prompts_path}")
             sys.exit(1)
         prompts = [line.strip() for line in prompts_path.read_text().splitlines() if line.strip()]
-        print(f"[INFO] Loaded {len(prompts)} prompts from: {prompts_path}")
-    else:
-        print(f"[INFO] Using {len(DEFAULT_PROMPTS)} default Turkish prompts")
-    
-    # Run inference
+
     try:
-        results = run_inference(
-            checkpoint_dir=args.checkpoint_dir,
+        run_inference(
+            model_name_or_path=model_name_or_path,
+            tokenizer_name_or_path=args.tokenizer_name_or_path,
             prompts=prompts,
+            system_prompt=args.system_prompt,
             max_new_tokens=args.max_new_tokens,
             temperature=args.temperature,
             top_p=args.top_p,
+            top_k=args.top_k,
+            repetition_penalty=args.repetition_penalty,
             do_sample=not args.no_sample,
+            torch_dtype=args.torch_dtype,
+            device=args.device,
+            device_map=args.device_map,
+            attn_implementation=args.attn_implementation,
         )
-        print(f"[SUCCESS] Generated {len(results)} responses")
-    except Exception as e:
-        print(f"[ERROR] Inference failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    except Exception as exc:
+        print(f"[ERROR] Inference failed: {exc}")
+        raise
 
 
 if __name__ == "__main__":

@@ -91,7 +91,7 @@ class MetricsLogger:
         loss = metrics.get("loss", 0)
         lr = metrics.get("lr", 0)
         tokens_per_sec = metrics.get("tokens_per_sec", 0)
-        gpu_mem = metrics.get("gpu_memory_gb", 0)
+        gpu_mem = metrics.get("gpu_memory_gb", 0) or 0
         eta = metrics.get("eta_seconds", 0)
         
         text_line = (

@@ -12,14 +12,14 @@ CONFIG="${1:-configs/train.yaml}"
 shift 2>/dev/null || true
 
 echo "========================================"
-echo "Mamba CPT Pipeline - Turkish"
+echo "Jamba2 CPT Pipeline - Turkish"
 echo "========================================"
 echo "Config: $CONFIG"
 echo "Extra args: $@"
 echo "========================================"
 
 # Activate conda environment
-CONDA_ENV="${CONDA_ENV:-tr_mamba_cpt}"
+CONDA_ENV="${CONDA_ENV:-tr_jamba2_cpt}"
 echo "Activating conda environment: $CONDA_ENV"
 
 # Initialize conda for script usage

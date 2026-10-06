@@ -1,0 +1,3816 @@
+{
+  "base_vocab_size": 65536,
+  "base_merges_size": 139278,
+  "new_vocab_size": 69632,
+  "new_merges_size": 143374,
+  "added_token_count": 4096,
+  "added_merge_count": 4096,
+  "sampled_lines_per_file": 20000,
+  "selected_tokens_preview": [
+    {
+      "token": "▁içi",
+      "source_samba_id": 34351,
+      "plain": "içi",
+      "new_id": 65536
+    },
+    {
+      "token": "▁için",
+      "source_samba_id": 32022,
+      "plain": "için",
+      "new_id": 65537
+    },
+    {
+      "token": "iç",
+      "source_samba_id": 32207,
+      "plain": "iç",
+      "new_id": 65538
+    },
+    {
+      "token": "içi",
+      "source_samba_id": 39265,
+      "plain": "içi",
+      "new_id": 65539
+    },
+    {
+      "token": "için",
+      "source_samba_id": 41279,
+      "plain": "için",
+      "new_id": 65540
+    },
+    {
+      "token": "▁ç",
+      "source_samba_id": 32004,
+      "plain": "ç",
+      "new_id": 65541
+    },
+    {
+      "token": "▁çok",
+      "source_samba_id": 32070,
+      "plain": "çok",
+      "new_id": 65542
+    },
+    {
+      "token": "çok",
+      "source_samba_id": 32563,
+      "plain": "çok",
+      "new_id": 65543
+    },
+    {
+      "token": "çi",
+      "source_samba_id": 32541,
+      "plain": "çi",
+      "new_id": 65544
+    },
+    {
+      "token": "çin",
+      "source_samba_id": 37454,
+      "plain": "çin",
+      "new_id": 65545
+    },
+    {
+      "token": "▁Için",
+      "source_samba_id": 40250,
+      "plain": "Için",
+      "new_id": 65546
+    },
+    {
+      "token": "▁Çok",
+      "source_samba_id": 33263,
+      "plain": "Çok",
+      "new_id": 65547
+    },
+    {
+      "token": "Çok",
+      "source_samba_id": 40546,
+      "plain": "Çok",
+      "new_id": 65548
+    },
+    {
+      "token": "▁ÇOK",
+      "source_samba_id": 41122,
+      "plain": "ÇOK",
+      "new_id": 65549
+    },
+    {
+      "token": "tara",
+      "source_samba_id": 51906,
+      "plain": "tara",
+      "new_id": 65550
+    },
+    {
+      "token": "taraf",
+      "source_samba_id": 44122,
+      "plain": "taraf",
+      "new_id": 65551
+    },
+    {
+      "token": "▁taraf",
+      "source_samba_id": 32153,
+      "plain": "taraf",
+      "new_id": 65552
+    },
+    {
+      "token": "▁tarafı",
+      "source_samba_id": 38815,
+      "plain": "tarafı",
+      "new_id": 65553
+    },
+    {
+      "token": "▁tarafın",
+      "source_samba_id": 43448,
+      "plain": "tarafın",
+      "new_id": 65554
+    },
+    {
+      "token": "▁tarafından",
+      "source_samba_id": 32223,
+      "plain": "tarafından",
+      "new_id": 65555
+    },
+    {
+      "token": "▁gö",
+      "source_samba_id": 32013,
+      "plain": "gö",
+      "new_id": 65556
+    },
+    {
+      "token": "▁gör",
+      "source_samba_id": 32038,
+      "plain": "gör",
+      "new_id": 65557
+    },
+    {
+      "token": "▁göre",
+      "source_samba_id": 32243,
+      "plain": "göre",
+      "new_id": 65558
+    },
+    {
+      "token": "üy",
+      "source_samba_id": 32050,
+      "plain": "üy",
+      "new_id": 65559
+    },
+    {
+      "token": "▁büy",
+      "source_samba_id": 32869,
+      "plain": "büy",
+      "new_id": 65560
+    },
+    {
+      "token": "▁büyü",
+      "source_samba_id": 36044,
+      "plain": "büyü",
+      "new_id": 65561
+    },
+    {
+      "token": "▁büyük",
+      "source_samba_id": 32199,
+      "plain": "büyük",
+      "new_id": 65562
+    },
+    {
+      "token": "üyü",
+      "source_samba_id": 37626,
+      "plain": "üyü",
+      "new_id": 65563
+    },
+    {
+      "token": "üyük",
+      "source_samba_id": 32148,
+      "plain": "üyük",
+      "new_id": 65564
+    },
+    {
+      "token": "büyük",
+      "source_samba_id": 50626,
+      "plain": "büyük",
+      "new_id": 65565
+    },
+    {
+      "token": "▁oldu",
+      "source_samba_id": 32055,
+      "plain": "oldu",
+      "new_id": 65566
+    },
+    {
+      "token": "▁olduğ",
+      "source_samba_id": 32093,
+      "plain": "olduğ",
+      "new_id": 65567
+    },
+    {
+      "token": "▁olduğu",
+      "source_samba_id": 32253,
+      "plain": "olduğu",
+      "new_id": 65568
+    },
+    {
+      "token": "tü",
+      "source_samba_id": 32400,
+      "plain": "tü",
+      "new_id": 65569
+    },
+    {
+      "token": "tüm",
+      "source_samba_id": 40579,
+      "plain": "tüm",
+      "new_id": 65570
+    },
+    {
+      "token": "▁tüm",
+      "source_samba_id": 32267,
+      "plain": "tüm",
+      "new_id": 65571
+    },
+    {
+      "token": "▁ş",
+      "source_samba_id": 32020,
+      "plain": "ş",
+      "new_id": 65572
+    },
+    {
+      "token": "▁şek",
+      "source_samba_id": 32156,
+      "plain": "şek",
+      "new_id": 65573
+    },
+    {
+      "token": "▁şekil",
+      "source_samba_id": 32218,
+      "plain": "şekil",
+      "new_id": 65574
+    },
+    {
+      "token": "▁şekilde",
+      "source_samba_id": 32247,
+      "plain": "şekilde",
+      "new_id": 65575
+    },
+    {
+      "token": "nı",
+      "source_samba_id": 32291,
+      "plain": "nı",
+      "new_id": 65576
+    },
+    {
+      "token": "nın",
+      "source_samba_id": 32285,
+      "plain": "nın",
+      "new_id": 65577
+    },
+    {
+      "token": "▁nın",
+      "source_samba_id": 40910,
+      "plain": "nın",
+      "new_id": 65578
+    },
+    {
+      "token": "▁olduğun",
+      "source_samba_id": 48528,
+      "plain": "olduğun",
+      "new_id": 65579
+    },
+    {
+      "token": "▁olduğunu",
+      "source_samba_id": 32323,
+      "plain": "olduğunu",
+      "new_id": 65580
+    },
+    {
+      "token": "▁ön",
+      "source_samba_id": 32047,
+      "plain": "ön",
+      "new_id": 65581
+    },
+    {
+      "token": "▁öne",
+      "source_samba_id": 34396,
+      "plain": "öne",
+      "new_id": 65582
+    },
+    {
+      "token": "▁önem",
+      "source_samba_id": 32205,
+      "plain": "önem",
+      "new_id": 65583
+    },
+    {
+      "token": "▁önemli",
+      "source_samba_id": 32302,
+      "plain": "önemli",
+      "new_id": 65584
+    },
+    {
+      "token": "▁önc",
+      "source_samba_id": 32474,
+      "plain": "önc",
+      "new_id": 65585
+    },
+    {
+      "token": "▁önce",
+      "source_samba_id": 32329,
+      "plain": "önce",
+      "new_id": 65586
+    },
+    {
+      "token": "sı",
+      "source_samba_id": 33675,
+      "plain": "sı",
+      "new_id": 65587
+    },
+    {
+      "token": "ası",
+      "source_samba_id": 32023,
+      "plain": "ası",
+      "new_id": 65588
+    },
+    {
+      "token": "rası",
+      "source_samba_id": 52454,
+      "plain": "rası",
+      "new_id": 65589
+    },
+    {
+      "token": "arası",
+      "source_samba_id": 32801,
+      "plain": "arası",
+      "new_id": 65590
+    },
+    {
+      "token": "▁arası",
+      "source_samba_id": 34278,
+      "plain": "arası",
+      "new_id": 65591
+    },
+    {
+      "token": "▁arasın",
+      "source_samba_id": 52322,
+      "plain": "arasın",
+      "new_id": 65592
+    },
+    {
+      "token": "▁arasında",
+      "source_samba_id": 32365,
+      "plain": "arasında",
+      "new_id": 65593
+    },
+    {
+      "token": "yı",
+      "source_samba_id": 34018,
+      "plain": "yı",
+      "new_id": 65594
+    },
+    {
+      "token": "yıl",
+      "source_samba_id": 34105,
+      "plain": "yıl",
+      "new_id": 65595
+    },
+    {
+      "token": "▁yıl",
+      "source_samba_id": 32090,
+      "plain": "yıl",
+      "new_id": 65596
+    },
+    {
+      "token": "tür",
+      "source_samba_id": 32357,
+      "plain": "tür",
+      "new_id": 65597
+    },
+    {
+      "token": "▁tür",
+      "source_samba_id": 32462,
+      "plain": "tür",
+      "new_id": 65598
+    },
+    {
+      "token": "▁türk",
+      "source_samba_id": 35059,
+      "plain": "türk",
+      "new_id": 65599
+    },
+    {
+      "token": "iye",
+      "source_samba_id": 32044,
+      "plain": "iye",
+      "new_id": 65600
+    },
+    {
+      "token": "▁türkiye",
+      "source_samba_id": 41817,
+      "plain": "türkiye",
+      "new_id": 65601
+    },
+    {
+      "token": "ürk",
+      "source_samba_id": 32073,
+      "plain": "ürk",
+      "new_id": 65602
+    },
+    {
+      "token": "Türk",
+      "source_samba_id": 33922,
+      "plain": "Türk",
+      "new_id": 65603
+    },
+    {
+      "token": "▁Türk",
+      "source_samba_id": 32097,
+      "plain": "Türk",
+      "new_id": 65604
+    },
+    {
+      "token": "▁Türkiye",
+      "source_samba_id": 32181,
+      "plain": "Türkiye",
+      "new_id": 65605
+    },
+    {
+      "token": "Türkiye",
+      "source_samba_id": 34896,
+      "plain": "Türkiye",
+      "new_id": 65606
+    },
+    {
+      "token": "ayn",
+      "source_samba_id": 39707,
+      "plain": "ayn",
+      "new_id": 65607
+    },
+    {
+      "token": "▁ayn",
+      "source_samba_id": 36172,
+      "plain": "ayn",
+      "new_id": 65608
+    },
+    {
+      "token": "▁aynı",
+      "source_samba_id": 32428,
+      "plain": "aynı",
+      "new_id": 65609
+    },
+    {
+      "token": "aynı",
+      "source_samba_id": 51171,
+      "plain": "aynı",
+      "new_id": 65610
+    },
+    {
+      "token": "yap",
+      "source_samba_id": 34264,
+      "plain": "yap",
+      "new_id": 65611
+    },
+    {
+      "token": "▁yap",
+      "source_samba_id": 32021,
+      "plain": "yap",
+      "new_id": 65612
+    },
+    {
+      "token": "▁yapı",
+      "source_samba_id": 33479,
+      "plain": "yapı",
+      "new_id": 65613
+    },
+    {
+      "token": "▁yapılan",
+      "source_samba_id": 32429,
+      "plain": "yapılan",
+      "new_id": 65614
+    },
+    {
+      "token": "üz",
+      "source_samba_id": 32016,
+      "plain": "üz",
+      "new_id": 65615
+    },
+    {
+      "token": "yüz",
+      "source_samba_id": 35348,
+      "plain": "yüz",
+      "new_id": 65616
+    },
+    {
+      "token": "▁yüz",
+      "source_samba_id": 32211,
+      "plain": "yüz",
+      "new_id": 65617
+    },
+    {
+      "token": "▁yüzde",
+      "source_samba_id": 32670,
+      "plain": "yüzde",
+      "new_id": 65618
+    },
+    {
+      "token": "gü",
+      "source_samba_id": 34976,
+      "plain": "gü",
+      "new_id": 65619
+    },
+    {
+      "token": "▁gü",
+      "source_samba_id": 36808,
+      "plain": "gü",
+      "new_id": 65620
+    },
+    {
+      "token": "▁gün",
+      "source_samba_id": 32085,
+      "plain": "gün",
+      "new_id": 65621
+    },
+    {
+      "token": "gün",
+      "source_samba_id": 32377,
+      "plain": "gün",
+      "new_id": 65622
+    },
+    {
+      "token": "iğ",
+      "source_samba_id": 32060,
+      "plain": "iğ",
+      "new_id": 65623
+    },
+    {
+      "token": "iğe",
+      "source_samba_id": 36986,
+      "plain": "iğe",
+      "new_id": 65624
+    },
+    {
+      "token": "iğer",
+      "source_samba_id": 32290,
+      "plain": "iğer",
+      "new_id": 65625
+    },
+    {
+      "token": "▁diğer",
+      "source_samba_id": 32397,
+      "plain": "diğer",
+      "new_id": 65626
+    },
+    {
+      "token": "eğ",
+      "source_samba_id": 32035,
+      "plain": "eğ",
+      "new_id": 65627
+    },
+    {
+      "token": "değ",
+      "source_samba_id": 37775,
+      "plain": "değ",
+      "new_id": 65628
+    },
+    {
+      "token": "▁değ",
+      "source_samba_id": 32061,
+      "plain": "değ",
+      "new_id": 65629
+    },
+    {
+      "token": "▁değil",
+      "source_samba_id": 32224,
+      "plain": "değil",
+      "new_id": 65630
+    },
+    {
+      "token": "▁içinde",
+      "source_samba_id": 32398,
+      "plain": "içinde",
+      "new_id": 65631
+    },
+    {
+      "token": "▁fark",
+      "source_samba_id": 32233,
+      "plain": "fark",
+      "new_id": 65632
+    },
+    {
+      "token": "▁farkl",
+      "source_samba_id": 46668,
+      "plain": "farkl",
+      "new_id": 65633
+    },
+    {
+      "token": "▁farklı",
+      "source_samba_id": 32435,
+      "plain": "farklı",
+      "new_id": 65634
+    },
+    {
+      "token": "▁Büy",
+      "source_samba_id": 39753,
+      "plain": "Büy",
+      "new_id": 65635
+    },
+    {
+      "token": "▁Büyü",
+      "source_samba_id": 52496,
+      "plain": "Büyü",
+      "new_id": 65636
+    },
+    {
+      "token": "▁Büyük",
+      "source_samba_id": 32749,
+      "plain": "Büyük",
+      "new_id": 65637
+    },
+    {
+      "token": "Büyük",
+      "source_samba_id": 43070,
+      "plain": "Büyük",
+      "new_id": 65638
+    },
+    {
+      "token": "▁Taraf",
+      "source_samba_id": 36966,
+      "plain": "Taraf",
+      "new_id": 65639
+    },
+    {
+      "token": "ınd",
+      "source_samba_id": 37595,
+      "plain": "ınd",
+      "new_id": 65640
+    },
+    {
+      "token": "ından",
+      "source_samba_id": 32063,
+      "plain": "ından",
+      "new_id": 65641
+    },
+    {
+      "token": "▁Tarafından",
+      "source_samba_id": 47238,
+      "plain": "Tarafından",
+      "new_id": 65642
+    },
+    {
+      "token": "Gör",
+      "source_samba_id": 43404,
+      "plain": "Gör",
+      "new_id": 65643
+    },
+    {
+      "token": "▁Gör",
+      "source_samba_id": 33018,
+      "plain": "Gör",
+      "new_id": 65644
+    },
+    {
+      "token": "▁Göre",
+      "source_samba_id": 44102,
+      "plain": "Göre",
+      "new_id": 65645
+    },
+    {
+      "token": "öz",
+      "source_samba_id": 32128,
+      "plain": "öz",
+      "new_id": 65646
+    },
+    {
+      "token": "▁öz",
+      "source_samba_id": 32130,
+      "plain": "öz",
+      "new_id": 65647
+    },
+    {
+      "token": "▁özel",
+      "source_samba_id": 32191,
+      "plain": "özel",
+      "new_id": 65648
+    },
+    {
+      "token": "özel",
+      "source_samba_id": 42064,
+      "plain": "özel",
+      "new_id": 65649
+    },
+    {
+      "token": "ÜY",
+      "source_samba_id": 39113,
+      "plain": "ÜY",
+      "new_id": 65650
+    },
+    {
+      "token": "▁BÜY",
+      "source_samba_id": 40828,
+      "plain": "BÜY",
+      "new_id": 65651
+    },
+    {
+      "token": "ÜK",
+      "source_samba_id": 35178,
+      "plain": "ÜK",
+      "new_id": 65652
+    },
+    {
+      "token": "▁BÜYÜK",
+      "source_samba_id": 42477,
+      "plain": "BÜYÜK",
+      "new_id": 65653
+    },
+    {
+      "token": "▁ard",
+      "source_samba_id": 39612,
+      "plain": "ard",
+      "new_id": 65654
+    },
+    {
+      "token": "▁ardı",
+      "source_samba_id": 41180,
+      "plain": "ardı",
+      "new_id": 65655
+    },
+    {
+      "token": "▁ardında",
+      "source_samba_id": 49189,
+      "plain": "ardında",
+      "new_id": 65656
+    },
+    {
+      "token": "▁ardından",
+      "source_samba_id": 32700,
+      "plain": "ardından",
+      "new_id": 65657
+    },
+    {
+      "token": "ük",
+      "source_samba_id": 21495,
+      "plain": "ük",
+      "new_id": 65658
+    },
+    {
+      "token": "▁yük",
+      "source_samba_id": 32203,
+      "plain": "yük",
+      "new_id": 65659
+    },
+    {
+      "token": "▁yüks",
+      "source_samba_id": 51103,
+      "plain": "yüks",
+      "new_id": 65660
+    },
+    {
+      "token": "▁yüksek",
+      "source_samba_id": 32466,
+      "plain": "yüksek",
+      "new_id": 65661
+    },
+    {
+      "token": "ıl",
+      "source_samba_id": 32003,
+      "plain": "ıl",
+      "new_id": 65662
+    },
+    {
+      "token": "▁nasıl",
+      "source_samba_id": 32422,
+      "plain": "nasıl",
+      "new_id": 65663
+    },
+    {
+      "token": "üm",
+      "source_samba_id": 32030,
+      "plain": "üm",
+      "new_id": 65664
+    },
+    {
+      "token": "Tüm",
+      "source_samba_id": 42352,
+      "plain": "Tüm",
+      "new_id": 65665
+    },
+    {
+      "token": "▁Tüm",
+      "source_samba_id": 33201,
+      "plain": "Tüm",
+      "new_id": 65666
+    },
+    {
+      "token": "▁karş",
+      "source_samba_id": 32149,
+      "plain": "karş",
+      "new_id": 65667
+    },
+    {
+      "token": "▁karşı",
+      "source_samba_id": 32467,
+      "plain": "karşı",
+      "new_id": 65668
+    },
+    {
+      "token": "▁üz",
+      "source_samba_id": 32115,
+      "plain": "üz",
+      "new_id": 65669
+    },
+    {
+      "token": "▁üzer",
+      "source_samba_id": 32124,
+      "plain": "üzer",
+      "new_id": 65670
+    },
+    {
+      "token": "▁üzere",
+      "source_samba_id": 32561,
+      "plain": "üzere",
+      "new_id": 65671
+    },
+    {
+      "token": "▁üzeri",
+      "source_samba_id": 38663,
+      "plain": "üzeri",
+      "new_id": 65672
+    },
+    {
+      "token": "▁üzerine",
+      "source_samba_id": 32627,
+      "plain": "üzerine",
+      "new_id": 65673
+    },
+    {
+      "token": "▁olm",
+      "source_samba_id": 32069,
+      "plain": "olm",
+      "new_id": 65674
+    },
+    {
+      "token": "▁olma",
+      "source_samba_id": 34469,
+      "plain": "olma",
+      "new_id": 65675
+    },
+    {
+      "token": "▁olmas",
+      "source_samba_id": 49105,
+      "plain": "olmas",
+      "new_id": 65676
+    },
+    {
+      "token": "▁olması",
+      "source_samba_id": 32510,
+      "plain": "olması",
+      "new_id": 65677
+    },
+    {
+      "token": "TÜ",
+      "source_samba_id": 37043,
+      "plain": "TÜ",
+      "new_id": 65678
+    },
+    {
+      "token": "▁TÜ",
+      "source_samba_id": 36883,
+      "plain": "TÜ",
+      "new_id": 65679
+    },
+    {
+      "token": "▁TÜM",
+      "source_samba_id": 46440,
+      "plain": "TÜM",
+      "new_id": 65680
+    },
+    {
+      "token": "▁üzerinde",
+      "source_samba_id": 32596,
+      "plain": "üzerinde",
+      "new_id": 65681
+    },
+    {
+      "token": "▁hak",
+      "source_samba_id": 32178,
+      "plain": "hak",
+      "new_id": 65682
+    },
+    {
+      "token": "▁hakk",
+      "source_samba_id": 32371,
+      "plain": "hakk",
+      "new_id": 65683
+    },
+    {
+      "token": "▁hakkı",
+      "source_samba_id": 34776,
+      "plain": "hakkı",
+      "new_id": 65684
+    },
+    {
+      "token": "▁hakkın",
+      "source_samba_id": 52914,
+      "plain": "hakkın",
+      "new_id": 65685
+    },
+    {
+      "token": "▁hakkında",
+      "source_samba_id": 32555,
+      "plain": "hakkında",
+      "new_id": 65686
+    },
+    {
+      "token": "oğ",
+      "source_samba_id": 32041,
+      "plain": "oğ",
+      "new_id": 65687
+    },
+    {
+      "token": "doğ",
+      "source_samba_id": 37714,
+      "plain": "doğ",
+      "new_id": 65688
+    },
+    {
+      "token": "▁doğ",
+      "source_samba_id": 32164,
+      "plain": "doğ",
+      "new_id": 65689
+    },
+    {
+      "token": "▁doğr",
+      "source_samba_id": 33184,
+      "plain": "doğr",
+      "new_id": 65690
+    },
+    {
+      "token": "▁doğru",
+      "source_samba_id": 32475,
+      "plain": "doğru",
+      "new_id": 65691
+    },
+    {
+      "token": "doğru",
+      "source_samba_id": 53220,
+      "plain": "doğru",
+      "new_id": 65692
+    },
+    {
+      "token": "▁eğ",
+      "source_samba_id": 32256,
+      "plain": "eğ",
+      "new_id": 65693
+    },
+    {
+      "token": "▁eğit",
+      "source_samba_id": 34210,
+      "plain": "eğit",
+      "new_id": 65694
+    },
+    {
+      "token": "▁eğitim",
+      "source_samba_id": 32534,
+      "plain": "eğitim",
+      "new_id": 65695
+    },
+    {
+      "token": "▁yılı",
+      "source_samba_id": 33971,
+      "plain": "yılı",
+      "new_id": 65696
+    },
+    {
+      "token": "▁yılın",
+      "source_samba_id": 35147,
+      "plain": "yılın",
+      "new_id": 65697
+    },
+    {
+      "token": "▁yılında",
+      "source_samba_id": 32678,
+      "plain": "yılında",
+      "new_id": 65698
+    },
+    {
+      "token": "▁birç",
+      "source_samba_id": 42927,
+      "plain": "birç",
+      "new_id": 65699
+    },
+    {
+      "token": "▁birçok",
+      "source_samba_id": 32680,
+      "plain": "birçok",
+      "new_id": 65700
+    },
+    {
+      "token": "iş",
+      "source_samba_id": 32007,
+      "plain": "iş",
+      "new_id": 65701
+    },
+    {
+      "token": "kiş",
+      "source_samba_id": 34863,
+      "plain": "kiş",
+      "new_id": 65702
+    },
+    {
+      "token": "▁kiş",
+      "source_samba_id": 32185,
+      "plain": "kiş",
+      "new_id": 65703
+    },
+    {
+      "token": "▁kişi",
+      "source_samba_id": 32658,
+      "plain": "kişi",
+      "new_id": 65704
+    },
+    {
+      "token": "kişi",
+      "source_samba_id": 48830,
+      "plain": "kişi",
+      "new_id": 65705
+    },
+    {
+      "token": "▁baz",
+      "source_samba_id": 12741,
+      "plain": "baz",
+      "new_id": 65706
+    },
+    {
+      "token": "▁bazı",
+      "source_samba_id": 32582,
+      "plain": "bazı",
+      "new_id": 65707
+    },
+    {
+      "token": "Ön",
+      "source_samba_id": 39521,
+      "plain": "Ön",
+      "new_id": 65708
+    },
+    {
+      "token": "▁Ön",
+      "source_samba_id": 32721,
+      "plain": "Ön",
+      "new_id": 65709
+    },
+    {
+      "token": "emli",
+      "source_samba_id": 35408,
+      "plain": "emli",
+      "new_id": 65710
+    },
+    {
+      "token": "▁Önemli",
+      "source_samba_id": 37803,
+      "plain": "Önemli",
+      "new_id": 65711
+    },
+    {
+      "token": "aş",
+      "source_samba_id": 32002,
+      "plain": "aş",
+      "new_id": 65712
+    },
+    {
+      "token": "baş",
+      "source_samba_id": 32607,
+      "plain": "baş",
+      "new_id": 65713
+    },
+    {
+      "token": "▁baş",
+      "source_samba_id": 32039,
+      "plain": "baş",
+      "new_id": 65714
+    },
+    {
+      "token": "▁başk",
+      "source_samba_id": 34782,
+      "plain": "başk",
+      "new_id": 65715
+    },
+    {
+      "token": "anı",
+      "source_samba_id": 32065,
+      "plain": "anı",
+      "new_id": 65716
+    },
+    {
+      "token": "▁başkanı",
+      "source_samba_id": 35539,
+      "plain": "başkanı",
+      "new_id": 65717
+    },
+    {
+      "token": "▁şey",
+      "source_samba_id": 32335,
+      "plain": "şey",
+      "new_id": 65718
+    },
+    {
+      "token": "şe",
+      "source_samba_id": 36280,
+      "plain": "şe",
+      "new_id": 65719
+    },
+    {
+      "token": "şey",
+      "source_samba_id": 35522,
+      "plain": "şey",
+      "new_id": 65720
+    },
+    {
+      "token": "▁sö",
+      "source_samba_id": 38036,
+      "plain": "sö",
+      "new_id": 65721
+    },
+    {
+      "token": "▁söyle",
+      "source_samba_id": 49527,
+      "plain": "söyle",
+      "new_id": 65722
+    },
+    {
+      "token": "▁söyledi",
+      "source_samba_id": 32927,
+      "plain": "söyledi",
+      "new_id": 65723
+    },
+    {
+      "token": "tı",
+      "source_samba_id": 32084,
+      "plain": "tı",
+      "new_id": 65724
+    },
+    {
+      "token": "▁yaptı",
+      "source_samba_id": 33299,
+      "plain": "yaptı",
+      "new_id": 65725
+    },
+    {
+      "token": "▁yaptığ",
+      "source_samba_id": 33417,
+      "plain": "yaptığ",
+      "new_id": 65726
+    },
+    {
+      "token": "▁yaptığı",
+      "source_samba_id": 32815,
+      "plain": "yaptığı",
+      "new_id": 65727
+    },
+    {
+      "token": "▁Ayn",
+      "source_samba_id": 42962,
+      "plain": "Ayn",
+      "new_id": 65728
+    },
+    {
+      "token": "▁Aynı",
+      "source_samba_id": 33837,
+      "plain": "Aynı",
+      "new_id": 65729
+    },
+    {
+      "token": "▁Önc",
+      "source_samba_id": 34081,
+      "plain": "Önc",
+      "new_id": 65730
+    },
+    {
+      "token": "▁Önce",
+      "source_samba_id": 36877,
+      "plain": "Önce",
+      "new_id": 65731
+    },
+    {
+      "token": "Yıl",
+      "source_samba_id": 42662,
+      "plain": "Yıl",
+      "new_id": 65732
+    },
+    {
+      "token": "▁Yıl",
+      "source_samba_id": 32701,
+      "plain": "Yıl",
+      "new_id": 65733
+    },
+    {
+      "token": "▁Aras",
+      "source_samba_id": 48049,
+      "plain": "Aras",
+      "new_id": 65734
+    },
+    {
+      "token": "ında",
+      "source_samba_id": 32019,
+      "plain": "ında",
+      "new_id": 65735
+    }
+  ],
+  "selected_merges_preview": [
+    {
+      "left": "▁içi",
+      "right": "n",
+      "samba_merge_index": 32,
+      "result": "▁için"
+    },
+    {
+      "left": "▁iç",
+      "right": "i",
+      "samba_merge_index": 5543,
+      "result": "▁içi"
+    },
+    {
+      "left": "i",
+      "right": "ç",
+      "samba_merge_index": 459,
+      "result": "iç"
+    },
+    {
+      "left": "iç",
+      "right": "i",
+      "samba_merge_index": 16361,
+      "result": "içi"
+    },
+    {
+      "left": "içi",
+      "right": "n",
+      "samba_merge_index": 20642,
+      "result": "için"
+    },
+    {
+      "left": "▁",
+      "right": "ç",
+      "samba_merge_index": 4,
+      "result": "▁ç"
+    },
+    {
+      "left": "▁ç",
+      "right": "ok",
+      "samba_merge_index": 130,
+      "result": "▁çok"
+    },
+    {
+      "left": "ç",
+      "right": "ok",
+      "samba_merge_index": 1322,
+      "result": "çok"
+    },
+    {
+      "left": "ç",
+      "right": "i",
+      "samba_merge_index": 1265,
+      "result": "çi"
+    },
+    {
+      "left": "çi",
+      "right": "n",
+      "samba_merge_index": 12473,
+      "result": "çin"
+    },
+    {
+      "left": "▁I",
+      "right": "çin",
+      "samba_merge_index": 18464,
+      "result": "▁Için"
+    },
+    {
+      "left": "▁Ç",
+      "right": "ok",
+      "samba_merge_index": 2980,
+      "result": "▁Çok"
+    },
+    {
+      "left": "Ç",
+      "right": "ok",
+      "samba_merge_index": 19081,
+      "result": "Çok"
+    },
+    {
+      "left": "▁Ç",
+      "right": "OK",
+      "samba_merge_index": 20287,
+      "result": "▁ÇOK"
+    },
+    {
+      "left": "▁",
+      "right": "taraf",
+      "samba_merge_index": 323,
+      "result": "▁taraf"
+    },
+    {
+      "left": "▁tarafın",
+      "right": "dan",
+      "samba_merge_index": 503,
+      "result": "▁tarafından"
+    },
+    {
+      "left": "▁taraf",
+      "right": "ı",
+      "samba_merge_index": 15398,
+      "result": "▁tarafı"
+    },
+    {
+      "left": "▁tarafı",
+      "right": "n",
+      "samba_merge_index": 25136,
+      "result": "▁tarafın"
+    },
+    {
+      "left": "tara",
+      "right": "f",
+      "samba_merge_index": 26534,
+      "result": "taraf"
+    },
+    {
+      "left": "t",
+      "right": "ara",
+      "samba_merge_index": 42451,
+      "result": "tara"
+    },
+    {
+      "left": "▁g",
+      "right": "ö",
+      "samba_merge_index": 16,
+      "result": "▁gö"
+    },
+    {
+      "left": "▁gö",
+      "right": "r",
+      "samba_merge_index": 64,
+      "result": "▁gör"
+    },
+    {
+      "left": "▁gör",
+      "right": "e",
+      "samba_merge_index": 545,
+      "result": "▁göre"
+    },
+    {
+      "left": "ü",
+      "right": "y",
+      "samba_merge_index": 86,
+      "result": "üy"
+    },
+    {
+      "left": "▁büyü",
+      "right": "k",
+      "samba_merge_index": 444,
+      "result": "▁büyük"
+    },
+    {
+      "left": "▁b",
+      "right": "üy",
+      "samba_merge_index": 2045,
+      "result": "▁büy"
+    },
+    {
+      "left": "▁büy",
+      "right": "ü",
+      "samba_merge_index": 9403,
+      "result": "▁büyü"
+    },
+    {
+      "left": "üyü",
+      "right": "k",
+      "samba_merge_index": 309,
+      "result": "üyük"
+    },
+    {
+      "left": "üy",
+      "right": "ü",
+      "samba_merge_index": 12853,
+      "result": "üyü"
+    },
+    {
+      "left": "b",
+      "right": "üyük",
+      "samba_merge_index": 39924,
+      "result": "büyük"
+    },
+    {
+      "left": "▁ol",
+      "right": "du",
+      "samba_merge_index": 97,
+      "result": "▁oldu"
+    },
+    {
+      "left": "▁oldu",
+      "right": "ğ",
+      "samba_merge_index": 182,
+      "result": "▁olduğ"
+    },
+    {
+      "left": "▁olduğ",
+      "right": "u",
+      "samba_merge_index": 572,
+      "result": "▁olduğu"
+    },
+    {
+      "left": "▁",
+      "right": "tüm",
+      "samba_merge_index": 606,
+      "result": "▁tüm"
+    },
+    {
+      "left": "t",
+      "right": "ü",
+      "samba_merge_index": 924,
+      "result": "tü"
+    },
+    {
+      "left": "tü",
+      "right": "m",
+      "samba_merge_index": 19155,
+      "result": "tüm"
+    },
+    {
+      "left": "▁",
+      "right": "ş",
+      "samba_merge_index": 25,
+      "result": "▁ş"
+    },
+    {
+      "left": "▁ş",
+      "right": "ek",
+      "samba_merge_index": 331,
+      "result": "▁şek"
+    },
+    {
+      "left": "▁şek",
+      "right": "il",
+      "samba_merge_index": 488,
+      "result": "▁şekil"
+    },
+    {
+      "left": "▁şekil",
+      "right": "de",
+      "samba_merge_index": 553,
+      "result": "▁şekilde"
+    },
+    {
+      "left": "nı",
+      "right": "n",
+      "samba_merge_index": 647,
+      "result": "nın"
+    },
+    {
+      "left": "n",
+      "right": "ı",
+      "samba_merge_index": 662,
+      "result": "nı"
+    },
+    {
+      "left": "▁",
+      "right": "nın",
+      "samba_merge_index": 19839,
+      "result": "▁nın"
+    },
+    {
+      "left": "▁olduğun",
+      "right": "u",
+      "samba_merge_index": 741,
+      "result": "▁olduğunu"
+    },
+    {
+      "left": "▁olduğu",
+      "right": "n",
+      "samba_merge_index": 35713,
+      "result": "▁olduğun"
+    },
+    {
+      "left": "▁",
+      "right": "ön",
+      "samba_merge_index": 81,
+      "result": "▁ön"
+    },
+    {
+      "left": "▁öne",
+      "right": "m",
+      "samba_merge_index": 455,
+      "result": "▁önem"
+    },
+    {
+      "left": "▁önem",
+      "right": "li",
+      "samba_merge_index": 686,
+      "result": "▁önemli"
+    },
+    {
+      "left": "▁ön",
+      "right": "e",
+      "samba_merge_index": 5648,
+      "result": "▁öne"
+    },
+    {
+      "left": "▁önc",
+      "right": "e",
+      "samba_merge_index": 755,
+      "result": "▁önce"
+    },
+    {
+      "left": "▁ön",
+      "right": "c",
+      "samba_merge_index": 1110,
+      "result": "▁önc"
+    },
+    {
+      "left": "a",
+      "right": "sı",
+      "samba_merge_index": 34,
+      "result": "ası"
+    },
+    {
+      "left": "▁arasın",
+      "right": "da",
+      "samba_merge_index": 840,
+      "result": "▁arasında"
+    },
+    {
+      "left": "a",
+      "right": "rası",
+      "samba_merge_index": 1894,
+      "result": "arası"
+    },
+    {
+      "left": "s",
+      "right": "ı",
+      "samba_merge_index": 3949,
+      "result": "sı"
+    },
+    {
+      "left": "▁",
+      "right": "arası",
+      "samba_merge_index": 5383,
+      "result": "▁arası"
+    },
+    {
+      "left": "▁arası",
+      "right": "n",
+      "samba_merge_index": 43246,
+      "result": "▁arasın"
+    },
+    {
+      "left": "r",
+      "right": "ası",
+      "samba_merge_index": 43513,
+      "result": "rası"
+    },
+    {
+      "left": "▁",
+      "right": "yıl",
+      "samba_merge_index": 174,
+      "result": "▁yıl"
+    },
+    {
+      "left": "y",
+      "right": "ı",
+      "samba_merge_index": 4779,
+      "result": "yı"
+    },
+    {
+      "left": "yı",
+      "right": "l",
+      "samba_merge_index": 4999,
+      "result": "yıl"
+    },
+    {
+      "left": "i",
+      "right": "ye",
+      "samba_merge_index": 75,
+      "result": "iye"
+    },
+    {
+      "left": "tü",
+      "right": "r",
+      "samba_merge_index": 819,
+      "result": "tür"
+    },
+    {
+      "left": "▁",
+      "right": "tür",
+      "samba_merge_index": 1083,
+      "result": "▁tür"
+    },
+    {
+      "left": "▁tür",
+      "right": "k",
+      "samba_merge_index": 7200,
+      "result": "▁türk"
+    },
+    {
+      "left": "▁türk",
+      "right": "iye",
+      "samba_merge_index": 21740,
+      "result": "▁türkiye"
+    },
+    {
+      "left": "ür",
+      "right": "k",
+      "samba_merge_index": 138,
+      "result": "ürk"
+    },
+    {
+      "left": "▁",
+      "right": "Türk",
+      "samba_merge_index": 191,
+      "result": "▁Türk"
+    },
+    {
+      "left": "▁Türk",
+      "right": "iye",
+      "samba_merge_index": 388,
+      "result": "▁Türkiye"
+    },
+    {
+      "left": "T",
+      "right": "ürk",
+      "samba_merge_index": 4532,
+      "result": "Türk"
+    },
+    {
+      "left": "Türk",
+      "right": "iye",
+      "samba_merge_index": 6819,
+      "result": "Türkiye"
+    },
+    {
+      "left": "▁ayn",
+      "right": "ı",
+      "samba_merge_index": 997,
+      "result": "▁aynı"
+    },
+    {
+      "left": "▁",
+      "right": "ayn",
+      "samba_merge_index": 9684,
+      "result": "▁ayn"
+    },
+    {
+      "left": "a",
+      "right": "yn",
+      "samba_merge_index": 17306,
+      "result": "ayn"
+    },
+    {
+      "left": "ayn",
+      "right": "ı",
+      "samba_merge_index": 40975,
+      "result": "aynı"
+    },
+    {
+      "left": "▁",
+      "right": "yap",
+      "samba_merge_index": 28,
+      "result": "▁yap"
+    },
+    {
+      "left": "▁yapı",
+      "right": "lan",
+      "samba_merge_index": 1000,
+      "result": "▁yapılan"
+    },
+    {
+      "left": "▁yap",
+      "right": "ı",
+      "samba_merge_index": 3504,
+      "result": "▁yapı"
+    },
+    {
+      "left": "y",
+      "right": "ap",
+      "samba_merge_index": 5354,
+      "result": "yap"
+    },
+    {
+      "left": "ü",
+      "right": "z",
+      "samba_merge_index": 19,
+      "result": "üz"
+    },
+    {
+      "left": "▁",
+      "right": "yüz",
+      "samba_merge_index": 470,
+      "result": "▁yüz"
+    },
+    {
+      "left": "▁yüz",
+      "right": "de",
+      "samba_merge_index": 1573,
+      "result": "▁yüzde"
+    },
+    {
+      "left": "y",
+      "right": "üz",
+      "samba_merge_index": 7863,
+      "result": "yüz"
+    },
+    {
+      "left": "▁gü",
+      "right": "n",
+      "samba_merge_index": 162,
+      "result": "▁gün"
+    },
+    {
+      "left": "g",
+      "right": "ü",
+      "samba_merge_index": 7004,
+      "result": "gü"
+    },
+    {
+      "left": "▁",
+      "right": "gü",
+      "samba_merge_index": 11085,
+      "result": "▁gü"
+    },
+    {
+      "left": "gü",
+      "right": "n",
+      "samba_merge_index": 870,
+      "result": "gün"
+    },
+    {
+      "left": "i",
+      "right": "ğ",
+      "samba_merge_index": 106,
+      "result": "iğ"
+    },
+    {
+      "left": "iğe",
+      "right": "r",
+      "samba_merge_index": 661,
+      "result": "iğer"
+    },
+    {
+      "left": "▁d",
+      "right": "iğer",
+      "samba_merge_index": 918,
+      "result": "▁diğer"
+    },
+    {
+      "left": "iğ",
+      "right": "e",
+      "samba_merge_index": 11465,
+      "result": "iğe"
+    },
+    {
+      "left": "e",
+      "right": "ğ",
+      "samba_merge_index": 58,
+      "result": "eğ"
+    },
+    {
+      "left": "▁",
+      "right": "değ",
+      "samba_merge_index": 109,
+      "result": "▁değ"
+    },
+    {
+      "left": "▁değ",
+      "right": "il",
+      "samba_merge_index": 504,
+      "result": "▁değil"
+    },
+    {
+      "left": "d",
+      "right": "eğ",
+      "samba_merge_index": 13152,
+      "result": "değ"
+    },
+    {
+      "left": "▁içi",
+      "right": "nde",
+      "samba_merge_index": 921,
+      "result": "▁içinde"
+    },
+    {
+      "left": "▁far",
+      "right": "k",
+      "samba_merge_index": 525,
+      "result": "▁fark"
+    },
+    {
+      "left": "▁farkl",
+      "right": "ı",
+      "samba_merge_index": 1019,
+      "result": "▁farklı"
+    },
+    {
+      "left": "▁fark",
+      "right": "l",
+      "samba_merge_index": 31863,
+      "result": "▁farkl"
+    },
+    {
+      "left": "▁Büyü",
+      "right": "k",
+      "samba_merge_index": 1770,
+      "result": "▁Büyük"
+    },
+    {
+      "left": "▁Bü",
+      "right": "y",
+      "samba_merge_index": 17396,
+      "result": "▁Büy"
+    },
+    {
+      "left": "▁Büy",
+      "right": "ü",
+      "samba_merge_index": 43591,
+      "result": "▁Büyü"
+    },
+    {
+      "left": "B",
+      "right": "üyük",
+      "samba_merge_index": 24340,
+      "result": "Büyük"
+    },
+    {
+      "left": "ınd",
+      "right": "an",
+      "samba_merge_index": 116,
+      "result": "ından"
+    },
+    {
+      "left": "▁Tar",
+      "right": "af",
+      "samba_merge_index": 11422,
+      "result": "▁Taraf"
+    },
+    {
+      "left": "ın",
+      "right": "d",
+      "samba_merge_index": 12790,
+      "result": "ınd"
+    },
+    {
+      "left": "▁Taraf",
+      "right": "ından",
+      "samba_merge_index": 33030,
+      "result": "▁Tarafından"
+    },
+    {
+      "left": "▁",
+      "right": "Gör",
+      "samba_merge_index": 2397,
+      "result": "▁Gör"
+    },
+    {
+      "left": "G",
+      "right": "ör",
+      "samba_merge_index": 25046,
+      "result": "Gör"
+    },
+    {
+      "left": "▁Gör",
+      "right": "e",
+      "samba_merge_index": 26492,
+      "result": "▁Göre"
+    },
+    {
+      "left": "ö",
+      "right": "z",
+      "samba_merge_index": 263,
+      "result": "öz"
+    },
+    {
+      "left": "▁",
+      "right": "öz",
+      "samba_merge_index": 266,
+      "result": "▁öz"
+    },
+    {
+      "left": "▁öz",
+      "right": "el",
+      "samba_merge_index": 419,
+      "result": "▁özel"
+    },
+    {
+      "left": "öz",
+      "right": "el",
+      "samba_merge_index": 22273,
+      "result": "özel"
+    },
+    {
+      "left": "Ü",
+      "right": "K",
+      "samba_merge_index": 7467,
+      "result": "ÜK"
+    },
+    {
+      "left": "Ü",
+      "right": "Y",
+      "samba_merge_index": 16047,
+      "result": "ÜY"
+    },
+    {
+      "left": "▁B",
+      "right": "ÜY",
+      "samba_merge_index": 19681,
+      "result": "▁BÜY"
+    },
+    {
+      "left": "▁BÜY",
+      "right": "ÜK",
+      "samba_merge_index": 23123,
+      "result": "▁BÜYÜK"
+    },
+    {
+      "left": "▁ardında",
+      "right": "n",
+      "samba_merge_index": 1641,
+      "result": "▁ardından"
+    },
+    {
+      "left": "▁",
+      "right": "ard",
+      "samba_merge_index": 17093,
+      "result": "▁ard"
+    },
+    {
+      "left": "▁ard",
+      "right": "ı",
+      "samba_merge_index": 20427,
+      "result": "▁ardı"
+    },
+    {
+      "left": "▁ardı",
+      "right": "nda",
+      "samba_merge_index": 37024,
+      "result": "▁ardında"
+    },
+    {
+      "left": "▁y",
+      "right": "ük",
+      "samba_merge_index": 450,
+      "result": "▁yük"
+    },
+    {
+      "left": "▁yüks",
+      "right": "ek",
+      "samba_merge_index": 1092,
+      "result": "▁yüksek"
+    },
+    {
+      "left": "▁yük",
+      "right": "s",
+      "samba_merge_index": 40831,
+      "result": "▁yüks"
+    },
+    {
+      "left": "ü",
+      "right": "k",
+      "samba_merge_index": 91708,
+      "result": "ük"
+    },
+    {
+      "left": "ı",
+      "right": "l",
+      "samba_merge_index": 3,
+      "result": "ıl"
+    },
+    {
+      "left": "▁nas",
+      "right": "ıl",
+      "samba_merge_index": 979,
+      "result": "▁nasıl"
+    },
+    {
+      "left": "ü",
+      "right": "m",
+      "samba_merge_index": 47,
+      "result": "üm"
+    },
+    {
+      "left": "▁",
+      "right": "Tüm",
+      "samba_merge_index": 2827,
+      "result": "▁Tüm"
+    },
+    {
+      "left": "T",
+      "right": "üm",
+      "samba_merge_index": 22859,
+      "result": "Tüm"
+    },
+    {
+      "left": "▁kar",
+      "right": "ş",
+      "samba_merge_index": 311,
+      "result": "▁karş"
+    },
+    {
+      "left": "▁karş",
+      "right": "ı",
+      "samba_merge_index": 1094,
+      "result": "▁karşı"
+    },
+    {
+      "left": "▁",
+      "right": "üz",
+      "samba_merge_index": 234,
+      "result": "▁üz"
+    },
+    {
+      "left": "▁üz",
+      "right": "er",
+      "samba_merge_index": 254,
+      "result": "▁üzer"
+    },
+    {
+      "left": "▁üzer",
+      "right": "e",
+      "samba_merge_index": 1318,
+      "result": "▁üzere"
+    },
+    {
+      "left": "▁üzeri",
+      "right": "ne",
+      "samba_merge_index": 1472,
+      "result": "▁üzerine"
+    },
+    {
+      "left": "▁üzer",
+      "right": "i",
+      "samba_merge_index": 15082,
+      "result": "▁üzeri"
+    },
+    {
+      "left": "▁ol",
+      "right": "m",
+      "samba_merge_index": 128,
+      "result": "▁olm"
+    },
+    {
+      "left": "▁olmas",
+      "right": "ı",
+      "samba_merge_index": 1195,
+      "result": "▁olması"
+    },
+    {
+      "left": "▁olm",
+      "right": "a",
+      "samba_merge_index": 5813,
+      "result": "▁olma"
+    },
+    {
+      "left": "▁olma",
+      "right": "s",
+      "samba_merge_index": 36852,
+      "result": "▁olmas"
+    },
+    {
+      "left": "▁",
+      "right": "TÜ",
+      "samba_merge_index": 11238,
+      "result": "▁TÜ"
+    },
+    {
+      "left": "T",
+      "right": "Ü",
+      "samba_merge_index": 11589,
+      "result": "TÜ"
+    },
+    {
+      "left": "▁TÜ",
+      "right": "M",
+      "samba_merge_index": 31371,
+      "result": "▁TÜM"
+    },
+    {
+      "left": "▁üzeri",
+      "right": "nde",
+      "samba_merge_index": 1405,
+      "result": "▁üzerinde"
+    },
+    {
+      "left": "▁",
+      "right": "hak",
+      "samba_merge_index": 381,
+      "result": "▁hak"
+    },
+    {
+      "left": "▁hak",
+      "right": "k",
+      "samba_merge_index": 856,
+      "result": "▁hakk"
+    },
+    {
+      "left": "▁hakkın",
+      "right": "da",
+      "samba_merge_index": 1302,
+      "result": "▁hakkında"
+    },
+    {
+      "left": "▁hakk",
+      "right": "ı",
+      "samba_merge_index": 6526,
+      "result": "▁hakkı"
+    },
+    {
+      "left": "▁hakkı",
+      "right": "n",
+      "samba_merge_index": 44418,
+      "result": "▁hakkın"
+    },
+    {
+      "left": "o",
+      "right": "ğ",
+      "samba_merge_index": 71,
+      "result": "oğ"
+    },
+    {
+      "left": "▁",
+      "right": "doğ",
+      "samba_merge_index": 349,
+      "result": "▁doğ"
+    },
+    {
+      "left": "▁doğr",
+      "right": "u",
+      "samba_merge_index": 1113,
+      "result": "▁doğru"
+    },
+    {
+      "left": "▁doğ",
+      "right": "r",
+      "samba_merge_index": 2788,
+      "result": "▁doğr"
+    },
+    {
+      "left": "d",
+      "right": "oğ",
+      "samba_merge_index": 13031,
+      "result": "doğ"
+    },
+    {
+      "left": "doğ",
+      "right": "ru",
+      "samba_merge_index": 45067,
+      "result": "doğru"
+    },
+    {
+      "left": "▁",
+      "right": "eğ",
+      "samba_merge_index": 580,
+      "result": "▁eğ"
+    },
+    {
+      "left": "▁eğit",
+      "right": "im",
+      "samba_merge_index": 1252,
+      "result": "▁eğitim"
+    },
+    {
+      "left": "▁eğ",
+      "right": "it",
+      "samba_merge_index": 5236,
+      "result": "▁eğit"
+    },
+    {
+      "left": "▁yılın",
+      "right": "da",
+      "samba_merge_index": 1592,
+      "result": "▁yılında"
+    },
+    {
+      "left": "▁yıl",
+      "right": "ı",
+      "samba_merge_index": 4656,
+      "result": "▁yılı"
+    },
+    {
+      "left": "▁yılı",
+      "right": "n",
+      "samba_merge_index": 7393,
+      "result": "▁yılın"
+    },
+    {
+      "left": "▁birç",
+      "right": "ok",
+      "samba_merge_index": 1595,
+      "result": "▁birçok"
+    },
+    {
+      "left": "▁bir",
+      "right": "ç",
+      "samba_merge_index": 24042,
+      "result": "▁birç"
+    },
+    {
+      "left": "i",
+      "right": "ş",
+      "samba_merge_index": 7,
+      "result": "iş"
+    },
+    {
+      "left": "▁",
+      "right": "kiş",
+      "samba_merge_index": 402,
+      "result": "▁kiş"
+    },
+    {
+      "left": "▁kiş",
+      "right": "i",
+      "samba_merge_index": 1548,
+      "result": "▁kişi"
+    },
+    {
+      "left": "k",
+      "right": "iş",
+      "samba_merge_index": 6743,
+      "result": "kiş"
+    },
+    {
+      "left": "kiş",
+      "right": "i",
+      "samba_merge_index": 36298,
+      "result": "kişi"
+    },
+    {
+      "left": "▁baz",
+      "right": "ı",
+      "samba_merge_index": 1369,
+      "result": "▁bazı"
+    },
+    {
+      "left": "▁",
+      "right": "baz",
+      "samba_merge_index": 73683,
+      "result": "▁baz"
+    },
+    {
+      "left": "▁",
+      "right": "Ön",
+      "samba_merge_index": 1690,
+      "result": "▁Ön"
+    },
+    {
+      "left": "em",
+      "right": "li",
+      "samba_merge_index": 7992,
+      "result": "emli"
+    },
+    {
+      "left": "▁Ön",
+      "right": "emli",
+      "samba_merge_index": 13210,
+      "result": "▁Önemli"
+    },
+    {
+      "left": "Ö",
+      "right": "n",
+      "samba_merge_index": 16891,
+      "result": "Ön"
+    },
+    {
+      "left": "a",
+      "right": "ş",
+      "samba_merge_index": 2,
+      "result": "aş"
+    },
+    {
+      "left": "▁",
+      "right": "baş",
+      "samba_merge_index": 67,
+      "result": "▁baş"
+    },
+    {
+      "left": "a",
+      "right": "nı",
+      "samba_merge_index": 120,
+      "result": "anı"
+    },
+    {
+      "left": "b",
+      "right": "aş",
+      "samba_merge_index": 1429,
+      "result": "baş"
+    },
+    {
+      "left": "▁baş",
+      "right": "k",
+      "samba_merge_index": 6537,
+      "result": "▁başk"
+    },
+    {
+      "left": "▁başk",
+      "right": "anı",
+      "samba_merge_index": 8294,
+      "result": "▁başkanı"
+    },
+    {
+      "left": "▁ş",
+      "right": "ey",
+      "samba_merge_index": 768,
+      "result": "▁şey"
+    },
+    {
+      "left": "şe",
+      "right": "y",
+      "samba_merge_index": 8253,
+      "result": "şey"
+    },
+    {
+      "left": "ş",
+      "right": "e",
+      "samba_merge_index": 9922,
+      "result": "şe"
+    },
+    {
+      "left": "▁söyle",
+      "right": "di",
+      "samba_merge_index": 2186,
+      "result": "▁söyledi"
+    },
+    {
+      "left": "▁s",
+      "right": "ö",
+      "samba_merge_index": 13711,
+      "result": "▁sö"
+    },
+    {
+      "left": "▁sö",
+      "right": "yle",
+      "samba_merge_index": 37716,
+      "result": "▁söyle"
+    },
+    {
+      "left": "t",
+      "right": "ı",
+      "samba_merge_index": 159,
+      "result": "tı"
+    },
+    {
+      "left": "▁yaptığ",
+      "right": "ı",
+      "samba_merge_index": 1925,
+      "result": "▁yaptığı"
+    },
+    {
+      "left": "▁yap",
+      "right": "tı",
+      "samba_merge_index": 3058,
+      "result": "▁yaptı"
+    },
+    {
+      "left": "▁yaptı",
+      "right": "ğ",
+      "samba_merge_index": 3344,
+      "result": "▁yaptığ"
+    },
+    {
+      "left": "▁Ayn",
+      "right": "ı",
+      "samba_merge_index": 4327,
+      "result": "▁Aynı"
+    },
+    {
+      "left": "▁Ay",
+      "right": "n",
+      "samba_merge_index": 24105,
+      "result": "▁Ayn"
+    },
+    {
+      "left": "▁Ön",
+      "right": "c",
+      "samba_merge_index": 4942,
+      "result": "▁Önc"
+    },
+    {
+      "left": "▁Önc",
+      "right": "e",
+      "samba_merge_index": 11226,
+      "result": "▁Önce"
+    },
+    {
+      "left": "▁",
+      "right": "Yıl",
+      "samba_merge_index": 1643,
+      "result": "▁Yıl"
+    },
+    {
+      "left": "Y",
+      "right": "ıl",
+      "samba_merge_index": 23497,
+      "result": "Yıl"
+    },
+    {
+      "left": "ınd",
+      "right": "a",
+      "samba_merge_index": 24,
+      "result": "ında"
+    },
+    {
+      "left": "▁Ara",
+      "right": "s",
+      "samba_merge_index": 34679,
+      "result": "▁Aras"
+    }
+  ],
+  "top_candidate_preview": [
+    {
+      "token": "▁için",
+      "plain": "için",
+      "samba_id": 32022,
+      "frequency": 2321164,
+      "score": 232116750.0
+    },
+    {
+      "token": "için",
+      "plain": "için",
+      "samba_id": 41279,
+      "frequency": 2321164,
+      "score": 232116600.0
+    },
+    {
+      "token": "▁çok",
+      "plain": "çok",
+      "samba_id": 32070,
+      "frequency": 1183800,
+      "score": 118380350.0
+    },
+    {
+      "token": "çok",
+      "plain": "çok",
+      "samba_id": 32563,
+      "frequency": 1183800,
+      "score": 118380200.0
+    },
+    {
+      "token": "▁Için",
+      "plain": "Için",
+      "samba_id": 40250,
+      "frequency": 1160816,
+      "score": 116081950.0
+    },
+    {
+      "token": "▁Çok",
+      "plain": "Çok",
+      "samba_id": 33263,
+      "frequency": 610300,
+      "score": 61030350.0
+    },
+    {
+      "token": "Çok",
+      "plain": "Çok",
+      "samba_id": 40546,
+      "frequency": 610300,
+      "score": 61030200.0
+    },
+    {
+      "token": "▁ÇOK",
+      "plain": "ÇOK",
+      "samba_id": 41122,
+      "frequency": 592896,
+      "score": 59289950.0
+    },
+    {
+      "token": "▁tarafından",
+      "plain": "tarafından",
+      "samba_id": 32223,
+      "frequency": 513944,
+      "score": 51394750.0
+    },
+    {
+      "token": "▁göre",
+      "plain": "göre",
+      "samba_id": 32243,
+      "frequency": 509532,
+      "score": 50953550.0
+    },
+    {
+      "token": "▁büyük",
+      "plain": "büyük",
+      "samba_id": 32199,
+      "frequency": 509160,
+      "score": 50916350.0
+    },
+    {
+      "token": "büyük",
+      "plain": "büyük",
+      "samba_id": 50626,
+      "frequency": 509160,
+      "score": 50916200.0
+    },
+    {
+      "token": "▁olduğu",
+      "plain": "olduğu",
+      "samba_id": 32253,
+      "frequency": 472978,
+      "score": 47298150.0
+    },
+    {
+      "token": "▁tüm",
+      "plain": "tüm",
+      "samba_id": 32267,
+      "frequency": 432256,
+      "score": 43225950.0
+    },
+    {
+      "token": "tüm",
+      "plain": "tüm",
+      "samba_id": 40579,
+      "frequency": 432256,
+      "score": 43225800.0
+    },
+    {
+      "token": "▁şekilde",
+      "plain": "şekilde",
+      "samba_id": 32247,
+      "frequency": 427718,
+      "score": 42772150.0
+    },
+    {
+      "token": "▁nın",
+      "plain": "nın",
+      "samba_id": 40910,
+      "frequency": 421074,
+      "score": 42107750.0
+    },
+    {
+      "token": "nın",
+      "plain": "nın",
+      "samba_id": 32285,
+      "frequency": 421074,
+      "score": 42107600.0
+    },
+    {
+      "token": "▁olduğunu",
+      "plain": "olduğunu",
+      "samba_id": 32323,
+      "frequency": 418296,
+      "score": 41829950.0
+    },
+    {
+      "token": "▁önemli",
+      "plain": "önemli",
+      "samba_id": 32302,
+      "frequency": 361016,
+      "score": 36101950.0
+    },
+    {
+      "token": "▁önce",
+      "plain": "önce",
+      "samba_id": 32329,
+      "frequency": 340940,
+      "score": 34094350.0
+    },
+    {
+      "token": "▁arasında",
+      "plain": "arasında",
+      "samba_id": 32365,
+      "frequency": 339168,
+      "score": 33917150.0
+    },
+    {
+      "token": "▁yıl",
+      "plain": "yıl",
+      "samba_id": 32090,
+      "frequency": 338358,
+      "score": 33836150.0
+    },
+    {
+      "token": "yıl",
+      "plain": "yıl",
+      "samba_id": 34105,
+      "frequency": 338358,
+      "score": 33836000.0
+    },
+    {
+      "token": "▁türkiye",
+      "plain": "türkiye",
+      "samba_id": 41817,
+      "frequency": 335048,
+      "score": 33505150.0
+    },
+    {
+      "token": "▁Türkiye",
+      "plain": "Türkiye",
+      "samba_id": 32181,
+      "frequency": 334282,
+      "score": 33428550.0
+    },
+    {
+      "token": "Türkiye",
+      "plain": "Türkiye",
+      "samba_id": 34896,
+      "frequency": 334282,
+      "score": 33428400.0
+    },
+    {
+      "token": "▁aynı",
+      "plain": "aynı",
+      "samba_id": 32428,
+      "frequency": 316228,
+      "score": 31623150.0
+    },
+    {
+      "token": "aynı",
+      "plain": "aynı",
+      "samba_id": 51171,
+      "frequency": 316228,
+      "score": 31623000.0
+    },
+    {
+      "token": "▁yapılan",
+      "plain": "yapılan",
+      "samba_id": 32429,
+      "frequency": 309862,
+      "score": 30986550.0
+    },
+    {
+      "token": "▁yüzde",
+      "plain": "yüzde",
+      "samba_id": 32670,
+      "frequency": 304268,
+      "score": 30427150.0
+    },
+    {
+      "token": "▁gün",
+      "plain": "gün",
+      "samba_id": 32085,
+      "frequency": 303984,
+      "score": 30398750.0
+    },
+    {
+      "token": "gün",
+      "plain": "gün",
+      "samba_id": 32377,
+      "frequency": 303984,
+      "score": 30398600.0
+    },
+    {
+      "token": "▁diğer",
+      "plain": "diğer",
+      "samba_id": 32397,
+      "frequency": 301088,
+      "score": 30109150.0
+    },
+    {
+      "token": "▁değil",
+      "plain": "değil",
+      "samba_id": 32224,
+      "frequency": 294420,
+      "score": 29442350.0
+    },
+    {
+      "token": "▁içinde",
+      "plain": "içinde",
+      "samba_id": 32398,
+      "frequency": 287910,
+      "score": 28791350.0
+    },
+    {
+      "token": "▁farklı",
+      "plain": "farklı",
+      "samba_id": 32435,
+      "frequency": 276630,
+      "score": 27663350.0
+    },
+    {
+      "token": "▁Büyük",
+      "plain": "Büyük",
+      "samba_id": 32749,
+      "frequency": 266171,
+      "score": 26617450.0
+    },
+    {
+      "token": "Büyük",
+      "plain": "Büyük",
+      "samba_id": 43070,
+      "frequency": 266171,
+      "score": 26617300.0
+    },
+    {
+      "token": "▁Tarafından",
+      "plain": "Tarafından",
+      "samba_id": 47238,
+      "frequency": 257346,
+      "score": 25734950.0
+    },
+    {
+      "token": "▁Göre",
+      "plain": "Göre",
+      "samba_id": 44102,
+      "frequency": 255291,
+      "score": 25529450.0
+    },
+    {
+      "token": "▁özel",
+      "plain": "özel",
+      "samba_id": 32191,
+      "frequency": 255224,
+      "score": 25522750.0
+    },
+    {
+      "token": "özel",
+      "plain": "özel",
+      "samba_id": 42064,
+      "frequency": 255224,
+      "score": 25522600.0
+    },
+    {
+      "token": "▁BÜYÜK",
+      "plain": "BÜYÜK",
+      "samba_id": 42477,
+      "frequency": 255081,
+      "score": 25508450.0
+    },
+    {
+      "token": "▁ardından",
+      "plain": "ardından",
+      "samba_id": 32700,
+      "frequency": 254712,
+      "score": 25471550.0
+    },
+    {
+      "token": "▁yüksek",
+      "plain": "yüksek",
+      "samba_id": 32466,
+      "frequency": 244020,
+      "score": 24402350.0
+    },
+    {
+      "token": "▁nasıl",
+      "plain": "nasıl",
+      "samba_id": 32422,
+      "frequency": 243320,
+      "score": 24332350.0
+    },
+    {
+      "token": "▁Tüm",
+      "plain": "Tüm",
+      "samba_id": 33201,
+      "frequency": 234987,
+      "score": 23499050.0
+    },
+    {
+      "token": "Tüm",
+      "plain": "Tüm",
+      "samba_id": 42352,
+      "frequency": 234987,
+      "score": 23498900.0
+    },
+    {
+      "token": "▁karşı",
+      "plain": "karşı",
+      "samba_id": 32467,
+      "frequency": 234106,
+      "score": 23410950.0
+    },
+    {
+      "token": "▁üzere",
+      "plain": "üzere",
+      "samba_id": 32561,
+      "frequency": 229862,
+      "score": 22986550.0
+    },
+    {
+      "token": "▁üzerine",
+      "plain": "üzerine",
+      "samba_id": 32627,
+      "frequency": 223766,
+      "score": 22376950.0
+    },
+    {
+      "token": "▁olması",
+      "plain": "olması",
+      "samba_id": 32510,
+      "frequency": 217740,
+      "score": 21774350.0
+    },
+    {
+      "token": "▁TÜM",
+      "plain": "TÜM",
+      "samba_id": 46440,
+      "frequency": 216492,
+      "score": 21649550.0
+    },
+    {
+      "token": "▁üzerinde",
+      "plain": "üzerinde",
+      "samba_id": 32596,
+      "frequency": 208838,
+      "score": 20884150.0
+    },
+    {
+      "token": "▁hakkında",
+      "plain": "hakkında",
+      "samba_id": 32555,
+      "frequency": 206300,
+      "score": 20630350.0
+    },
+    {
+      "token": "▁doğru",
+      "plain": "doğru",
+      "samba_id": 32475,
+      "frequency": 195266,
+      "score": 19526950.0
+    },
+    {
+      "token": "doğru",
+      "plain": "doğru",
+      "samba_id": 53220,
+      "frequency": 195266,
+      "score": 19526800.0
+    },
+    {
+      "token": "▁eğitim",
+      "plain": "eğitim",
+      "samba_id": 32534,
+      "frequency": 194756,
+      "score": 19475950.0
+    },
+    {
+      "token": "▁yılında",
+      "plain": "yılında",
+      "samba_id": 32678,
+      "frequency": 193164,
+      "score": 19316750.0
+    },
+    {
+      "token": "▁birçok",
+      "plain": "birçok",
+      "samba_id": 32680,
+      "frequency": 189410,
+      "score": 18941350.0
+    },
+    {
+      "token": "▁kişi",
+      "plain": "kişi",
+      "samba_id": 32658,
+      "frequency": 187996,
+      "score": 18799950.0
+    },
+    {
+      "token": "kişi",
+      "plain": "kişi",
+      "samba_id": 48830,
+      "frequency": 187996,
+      "score": 18799800.0
+    },
+    {
+      "token": "▁bazı",
+      "plain": "bazı",
+      "samba_id": 32582,
+      "frequency": 186748,
+      "score": 18675150.0
+    },
+    {
+      "token": "▁Önemli",
+      "plain": "Önemli",
+      "samba_id": 37803,
+      "frequency": 183480,
+      "score": 18348350.0
+    },
+    {
+      "token": "▁başkanı",
+      "plain": "başkanı",
+      "samba_id": 35539,
+      "frequency": 182140,
+      "score": 18214350.0
+    },
+    {
+      "token": "▁şey",
+      "plain": "şey",
+      "samba_id": 32335,
+      "frequency": 178866,
+      "score": 17886950.0
+    },
+    {
+      "token": "şey",
+      "plain": "şey",
+      "samba_id": 35522,
+      "frequency": 178866,
+      "score": 17886800.0
+    },
+    {
+      "token": "▁söyledi",
+      "plain": "söyledi",
+      "samba_id": 32927,
+      "frequency": 176986,
+      "score": 17698950.0
+    },
+    {
+      "token": "▁yaptığı",
+      "plain": "yaptığı",
+      "samba_id": 32815,
+      "frequency": 175902,
+      "score": 17590550.0
+    },
+    {
+      "token": "▁Aynı",
+      "plain": "Aynı",
+      "samba_id": 33837,
+      "frequency": 174384,
+      "score": 17438750.0
+    },
+    {
+      "token": "▁Önce",
+      "plain": "Önce",
+      "samba_id": 36877,
+      "frequency": 174267,
+      "score": 17427050.0
+    },
+    {
+      "token": "▁Yıl",
+      "plain": "Yıl",
+      "samba_id": 32701,
+      "frequency": 171813,
+      "score": 17181650.0
+    },
+    {
+      "token": "Yıl",
+      "plain": "Yıl",
+      "samba_id": 42662,
+      "frequency": 171813,
+      "score": 17181500.0
+    },
+    {
+      "token": "▁Arasında",
+      "plain": "Arasında",
+      "samba_id": 51961,
+      "frequency": 169944,
+      "score": 16994750.0
+    },
+    {
+      "token": "▁Başkanı",
+      "plain": "Başkanı",
+      "samba_id": 32434,
+      "frequency": 168420,
+      "score": 16842350.0
+    },
+    {
+      "token": "▁sağlık",
+      "plain": "sağlık",
+      "samba_id": 32664,
+      "frequency": 166620,
+      "score": 16662350.0
+    },
+    {
+      "token": "▁başlık",
+      "plain": "başlık",
+      "samba_id": 34581,
+      "frequency": 166038,
+      "score": 16604150.0
+    },
+    {
+      "token": "▁geçen",
+      "plain": "geçen",
+      "samba_id": 32895,
+      "frequency": 166034,
+      "score": 16603750.0
+    },
+    {
+      "token": "▁güzel",
+      "plain": "güzel",
+      "samba_id": 32433,
+      "frequency": 164968,
+      "score": 16497150.0
+    },
+    {
+      "token": "güzel",
+      "plain": "güzel",
+      "samba_id": 51204,
+      "frequency": 164968,
+      "score": 16497000.0
+    },
+    {
+      "token": "▁içerisinde",
+      "plain": "içerisinde",
+      "samba_id": 32714,
+      "frequency": 164278,
+      "score": 16428150.0
+    },
+    {
+      "token": "▁Yapılan",
+      "plain": "Yapılan",
+      "samba_id": 35365,
+      "frequency": 163769,
+      "score": 16377250.0
+    },
+    {
+      "token": "▁üzerinden",
+      "plain": "üzerinden",
+      "samba_id": 32757,
+      "frequency": 163448,
+      "score": 16345150.0
+    },
+    {
+      "token": "▁başka",
+      "plain": "başka",
+      "samba_id": 32686,
+      "frequency": 163074,
+      "score": 16307750.0
+    },
+    {
+      "token": "başka",
+      "plain": "başka",
+      "samba_id": 42929,
+      "frequency": 163074,
+      "score": 16307600.0
+    },
+    {
+      "token": "▁Diğer",
+      "plain": "Diğer",
+      "samba_id": 33884,
+      "frequency": 162890,
+      "score": 16289350.0
+    },
+    {
+      "token": "Diğer",
+      "plain": "Diğer",
+      "samba_id": 50606,
+      "frequency": 162890,
+      "score": 16289200.0
+    },
+    {
+      "token": "▁günü",
+      "plain": "günü",
+      "samba_id": 32902,
+      "frequency": 160062,
+      "score": 16006550.0
+    },
+    {
+      "token": "▁özellikle",
+      "plain": "özellikle",
+      "samba_id": 33063,
+      "frequency": 156084,
+      "score": 15608750.0
+    },
+    {
+      "token": "özellikle",
+      "plain": "özellikle",
+      "samba_id": 52742,
+      "frequency": 156084,
+      "score": 15608600.0
+    },
+    {
+      "token": "▁Gün",
+      "plain": "Gün",
+      "samba_id": 26974,
+      "frequency": 155333,
+      "score": 15533650.0
+    },
+    {
+      "token": "Gün",
+      "plain": "Gün",
+      "samba_id": 38504,
+      "frequency": 155333,
+      "score": 15533500.0
+    },
+    {
+      "token": "▁Yüzde",
+      "plain": "Yüzde",
+      "samba_id": 43177,
+      "frequency": 154199,
+      "score": 15420250.0
+    },
+    {
+      "token": "▁GÜN",
+      "plain": "GÜN",
+      "samba_id": 35073,
+      "frequency": 152480,
+      "score": 15248350.0
+    },
+    {
+      "token": "GÜN",
+      "plain": "GÜN",
+      "samba_id": 43288,
+      "frequency": 152480,
+      "score": 15248200.0
+    },
+    {
+      "token": "▁kısa",
+      "plain": "kısa",
+      "samba_id": 32855,
+      "frequency": 150056,
+      "score": 15005950.0
+    },
+    {
+      "token": "▁Değil",
+      "plain": "Değil",
+      "samba_id": 43512,
+      "frequency": 147655,
+      "score": 14765850.0
+    },
+    {
+      "token": "▁süre",
+      "plain": "süre",
+      "samba_id": 32936,
+      "frequency": 146078,
+      "score": 14608150.0
+    },
+    {
+      "token": "▁ayrıca",
+      "plain": "ayrıca",
+      "samba_id": 33620,
+      "frequency": 143386,
+      "score": 14338950.0
+    },
+    {
+      "token": "▁oldukça",
+      "plain": "oldukça",
+      "samba_id": 32842,
+      "frequency": 142904,
+      "score": 14290750.0
+    },
+    {
+      "token": "▁Farklı",
+      "plain": "Farklı",
+      "samba_id": 37007,
+      "frequency": 142568,
+      "score": 14257150.0
+    },
+    {
+      "token": "▁Özel",
+      "plain": "Özel",
+      "samba_id": 32736,
+      "frequency": 142088,
+      "score": 14209150.0
+    },
+    {
+      "token": "Özel",
+      "plain": "Özel",
+      "samba_id": 41006,
+      "frequency": 142088,
+      "score": 14209000.0
+    },
+    {
+      "token": "▁yönelik",
+      "plain": "yönelik",
+      "samba_id": 33008,
+      "frequency": 141808,
+      "score": 14181150.0
+    },
+    {
+      "token": "▁konuştu",
+      "plain": "konuştu",
+      "samba_id": 33294,
+      "frequency": 141720,
+      "score": 14172350.0
+    },
+    {
+      "token": "▁artık",
+      "plain": "artık",
+      "samba_id": 32887,
+      "frequency": 138694,
+      "score": 13869750.0
+    },
+    {
+      "token": "▁bugün",
+      "plain": "bugün",
+      "samba_id": 32795,
+      "frequency": 136266,
+      "score": 13626950.0
+    },
+    {
+      "token": "▁İstanbul",
+      "plain": "İstanbul",
+      "samba_id": 32447,
+      "frequency": 135539,
+      "score": 13554250.0
+    },
+    {
+      "token": "İstanbul",
+      "plain": "İstanbul",
+      "samba_id": 37990,
+      "frequency": 135539,
+      "score": 13554100.0
+    },
+    {
+      "token": "▁yaklaşık",
+      "plain": "yaklaşık",
+      "samba_id": 33288,
+      "frequency": 134782,
+      "score": 13478550.0
+    },
+    {
+      "token": "▁bağlı",
+      "plain": "bağlı",
+      "samba_id": 32863,
+      "frequency": 133876,
+      "score": 13387950.0
+    },
+    {
+      "token": "▁Ardından",
+      "plain": "Ardından",
+      "samba_id": 36801,
+      "frequency": 132650,
+      "score": 13265350.0
+    },
+    {
+      "token": "▁bütün",
+      "plain": "bütün",
+      "samba_id": 32717,
+      "frequency": 131720,
+      "score": 13172350.0
+    },
+    {
+      "token": "▁Yüksek",
+      "plain": "Yüksek",
+      "samba_id": 33826,
+      "frequency": 131214,
+      "score": 13121750.0
+    },
+    {
+      "token": "Yüksek",
+      "plain": "Yüksek",
+      "samba_id": 51390,
+      "frequency": 131214,
+      "score": 13121600.0
+    },
+    {
+      "token": "▁hiç",
+      "plain": "hiç",
+      "samba_id": 32419,
+      "frequency": 131004,
+      "score": 13100750.0
+    },
+    {
+      "token": "▁altında",
+      "plain": "altında",
+      "samba_id": 32918,
+      "frequency": 130896,
+      "score": 13089950.0
+    },
+    {
+      "token": "altında",
+      "plain": "altında",
+      "samba_id": 52089,
+      "frequency": 130896,
+      "score": 13089800.0
+    },
+    {
+      "token": "▁Nasıl",
+      "plain": "Nasıl",
+      "samba_id": 33687,
+      "frequency": 130716,
+      "score": 13071950.0
+    },
+    {
+      "token": "Nasıl",
+      "plain": "Nasıl",
+      "samba_id": 52687,
+      "frequency": 130716,
+      "score": 13071800.0
+    },
+    {
+      "token": "▁söz",
+      "plain": "söz",
+      "samba_id": 32327,
+      "frequency": 130174,
+      "score": 13017750.0
+    },
+    {
+      "token": "söz",
+      "plain": "söz",
+      "samba_id": 43178,
+      "frequency": 130174,
+      "score": 13017600.0
+    },
+    {
+      "token": "▁türk",
+      "plain": "türk",
+      "samba_id": 35059,
+      "frequency": 129760,
+      "score": 12976350.0
+    },
+    {
+      "token": "türk",
+      "plain": "türk",
+      "samba_id": 35414,
+      "frequency": 129760,
+      "score": 12976200.0
+    },
+    {
+      "token": "▁böyle",
+      "plain": "böyle",
+      "samba_id": 32765,
+      "frequency": 128184,
+      "score": 12818750.0
+    },
+    {
+      "token": "▁dünya",
+      "plain": "dünya",
+      "samba_id": 32879,
+      "frequency": 127992,
+      "score": 12799550.0
+    },
+    {
+      "token": "▁Türk",
+      "plain": "Türk",
+      "samba_id": 32097,
+      "frequency": 127267,
+      "score": 12727050.0
+    },
+    {
+      "token": "Türk",
+      "plain": "Türk",
+      "samba_id": 33922,
+      "frequency": 127267,
+      "score": 12726900.0
+    },
+    {
+      "token": "▁başladı",
+      "plain": "başladı",
+      "samba_id": 33041,
+      "frequency": 126244,
+      "score": 12624750.0
+    },
+    {
+      "token": "▁ilişkin",
+      "plain": "ilişkin",
+      "samba_id": 33182,
+      "frequency": 126026,
+      "score": 12602950.0
+    },
+    {
+      "token": "▁küçük",
+      "plain": "küçük",
+      "samba_id": 32971,
+      "frequency": 124582,
+      "score": 12458550.0
+    },
+    {
+      "token": "▁kapsamında",
+      "plain": "kapsamında",
+      "samba_id": 33200,
+      "frequency": 124506,
+      "score": 12450950.0
+    },
+    {
+      "token": "▁çıkan",
+      "plain": "çıkan",
+      "samba_id": 33111,
+      "frequency": 122390,
+      "score": 12239350.0
+    },
+    {
+      "token": "▁açık",
+      "plain": "açık",
+      "samba_id": 32192,
+      "frequency": 122374,
+      "score": 12237750.0
+    },
+    {
+      "token": "açık",
+      "plain": "açık",
+      "samba_id": 45454,
+      "frequency": 122374,
+      "score": 12237600.0
+    },
+    {
+      "token": "▁Eğitim",
+      "plain": "Eğitim",
+      "samba_id": 32980,
+      "frequency": 121698,
+      "score": 12170150.0
+    },
+    {
+      "token": "Eğitim",
+      "plain": "Eğitim",
+      "samba_id": 47549,
+      "frequency": 121698,
+      "score": 12170000.0
+    },
+    {
+      "token": "▁çalışma",
+      "plain": "çalışma",
+      "samba_id": 33120,
+      "frequency": 121064,
+      "score": 12106750.0
+    },
+    {
+      "token": "▁yakın",
+      "plain": "yakın",
+      "samba_id": 32727,
+      "frequency": 120694,
+      "score": 12069750.0
+    },
+    {
+      "token": "▁hızlı",
+      "plain": "hızlı",
+      "samba_id": 32958,
+      "frequency": 120324,
+      "score": 12032750.0
+    },
+    {
+      "token": "▁Karşı",
+      "plain": "Karşı",
+      "samba_id": 40721,
+      "frequency": 118456,
+      "score": 11845950.0
+    },
+    {
+      "token": "▁hiçbir",
+      "plain": "hiçbir",
+      "samba_id": 32923,
+      "frequency": 117520,
+      "score": 11752350.0
+    },
+    {
+      "token": "▁rağmen",
+      "plain": "rağmen",
+      "samba_id": 33133,
+      "frequency": 114754,
+      "score": 11475750.0
+    },
+    {
+      "token": "▁yatırım",
+      "plain": "yatırım",
+      "samba_id": 32489,
+      "frequency": 114434,
+      "score": 11443750.0
+    },
+    {
+      "token": "▁vardır",
+      "plain": "vardır",
+      "samba_id": 32799,
+      "frequency": 113822,
+      "score": 11382550.0
+    },
+    {
+      "token": "▁mümkün",
+      "plain": "mümkün",
+      "samba_id": 32852,
+      "frequency": 113646,
+      "score": 11364950.0
+    },
+    {
+      "token": "▁Üzerine",
+      "plain": "Üzerine",
+      "samba_id": 41372,
+      "frequency": 113111,
+      "score": 11311450.0
+    },
+    {
+      "token": "▁sıra",
+      "plain": "sıra",
+      "samba_id": 33205,
+      "frequency": 112406,
+      "score": 11240950.0
+    },
+    {
+      "token": "▁aldı",
+      "plain": "aldı",
+      "samba_id": 33311,
+      "frequency": 108130,
+      "score": 10813350.0
+    },
+    {
+      "token": "▁işlem",
+      "plain": "işlem",
+      "samba_id": 32286,
+      "frequency": 107558,
+      "score": 10756150.0
+    },
+    {
+      "token": "▁çıktı",
+      "plain": "çıktı",
+      "samba_id": 33421,
+      "frequency": 106428,
+      "score": 10643150.0
+    },
+    {
+      "token": "▁Ayrıca",
+      "plain": "Ayrıca",
+      "samba_id": 32868,
+      "frequency": 106340,
+      "score": 10634350.0
+    },
+    {
+      "token": "Ayrıca",
+      "plain": "Ayrıca",
+      "samba_id": 48906,
+      "frequency": 106340,
+      "score": 10634200.0
+    },
+    {
+      "token": "▁Hakkında",
+      "plain": "Hakkında",
+      "samba_id": 35345,
+      "frequency": 106291,
+      "score": 10629450.0
+    },
+    {
+      "token": "▁Üzerinde",
+      "plain": "Üzerinde",
+      "samba_id": 47137,
+      "frequency": 105635,
+      "score": 10563850.0
+    },
+    {
+      "token": "▁güvenlik",
+      "plain": "güvenlik",
+      "samba_id": 33542,
+      "frequency": 105602,
+      "score": 10560550.0
+    },
+    {
+      "token": "▁çünkü",
+      "plain": "çünkü",
+      "samba_id": 33659,
+      "frequency": 105034,
+      "score": 10503750.0
+    },
+    {
+      "token": "▁Bazı",
+      "plain": "Bazı",
+      "samba_id": 34321,
+      "frequency": 104044,
+      "score": 10404750.0
+    },
+    {
+      "token": "Bazı",
+      "plain": "Bazı",
+      "samba_id": 52547,
+      "frequency": 104044,
+      "score": 10404600.0
+    },
+    {
+      "token": "▁satın",
+      "plain": "satın",
+      "samba_id": 33123,
+      "frequency": 103376,
+      "score": 10337950.0
+    },
+    {
+      "token": "▁çeşitli",
+      "plain": "çeşitli",
+      "samba_id": 33139,
+      "frequency": 102990,
+      "score": 10299350.0
+    },
+    {
+      "token": "▁kadın",
+      "plain": "kadın",
+      "samba_id": 32650,
+      "frequency": 102716,
+      "score": 10271950.0
+    },
+    {
+      "token": "▁Sağlık",
+      "plain": "Sağlık",
+      "samba_id": 33265,
+      "frequency": 102493,
+      "score": 10249650.0
+    },
+    {
+      "token": "Sağlık",
+      "plain": "Sağlık",
+      "samba_id": 44371,
+      "frequency": 102493,
+      "score": 10249500.0
+    },
+    {
+      "token": "▁yanı",
+      "plain": "yanı",
+      "samba_id": 33230,
+      "frequency": 101204,
+      "score": 10120750.0
+    },
+    {
+      "token": "▁Doğru",
+      "plain": "Doğru",
+      "samba_id": 36456,
+      "frequency": 100800,
+      "score": 10080350.0
+    },
+    {
+      "token": "▁Birçok",
+      "plain": "Birçok",
+      "samba_id": 36242,
+      "frequency": 100606,
+      "score": 10060950.0
+    },
+    {
+      "token": "▁kişinin",
+      "plain": "kişinin",
+      "samba_id": 33435,
+      "frequency": 99802,
+      "score": 9980550.0
+    },
+    {
+      "token": "▁yaptı",
+      "plain": "yaptı",
+      "samba_id": 33299,
+      "frequency": 98936,
+      "score": 9893950.0
+    },
+    {
+      "token": "▁dolayı",
+      "plain": "dolayı",
+      "samba_id": 33180,
+      "frequency": 98914,
+      "score": 9891750.0
+    },
+    {
+      "token": "▁ürün",
+      "plain": "ürün",
+      "samba_id": 32351,
+      "frequency": 98580,
+      "score": 9858350.0
+    },
+    {
+      "token": "▁Yılında",
+      "plain": "Yılında",
+      "samba_id": 50200,
+      "frequency": 97134,
+      "score": 9713750.0
+    },
+    {
+      "token": "▁Özellikle",
+      "plain": "Özellikle",
+      "samba_id": 33753,
+      "frequency": 96922,
+      "score": 9692550.0
+    },
+    {
+      "token": "Özellikle",
+      "plain": "Özellikle",
+      "samba_id": 50644,
+      "frequency": 96922,
+      "score": 9692400.0
+    },
+    {
+      "token": "▁ettiği",
+      "plain": "ettiği",
+      "samba_id": 33394,
+      "frequency": 96692,
+      "score": 9669550.0
+    },
+    {
+      "token": "▁Kişi",
+      "plain": "Kişi",
+      "samba_id": 40371,
+      "frequency": 95470,
+      "score": 9547350.0
+    },
+    {
+      "token": "▁yardımcı",
+      "plain": "yardımcı",
+      "samba_id": 33090,
+      "frequency": 93726,
+      "score": 9372950.0
+    },
+    {
+      "token": "▁dışında",
+      "plain": "dışında",
+      "samba_id": 33287,
+      "frequency": 93362,
+      "score": 9336550.0
+    },
+    {
+      "token": "▁çocuk",
+      "plain": "çocuk",
+      "samba_id": 32473,
+      "frequency": 93058,
+      "score": 9306150.0
+    },
+    {
+      "token": "çocuk",
+      "plain": "çocuk",
+      "samba_id": 50174,
+      "frequency": 93058,
+      "score": 9306000.0
+    },
+    {
+      "token": "▁göz",
+      "plain": "göz",
+      "samba_id": 32312,
+      "frequency": 92444,
+      "score": 9244750.0
+    },
+    {
+      "token": "göz",
+      "plain": "göz",
+      "samba_id": 39177,
+      "frequency": 92444,
+      "score": 9244600.0
+    },
+    {
+      "token": "▁üst",
+      "plain": "üst",
+      "samba_id": 32469,
+      "frequency": 92130,
+      "score": 9213350.0
+    },
+    {
+      "token": "üst",
+      "plain": "üst",
+      "samba_id": 22548,
+      "frequency": 92130,
+      "score": 9213200.0
+    },
+    {
+      "token": "DAN",
+      "plain": "DAN",
+      "samba_id": 35928,
+      "frequency": 91541,
+      "score": 9156100.0
+    },
+    {
+      "token": "▁çalışan",
+      "plain": "çalışan",
+      "samba_id": 32844,
+      "frequency": 91546,
+      "score": 9154950.0
+    },
+    {
+      "token": "▁ayında",
+      "plain": "ayında",
+      "samba_id": 33955,
+      "frequency": 90696,
+      "score": 9069950.0
+    },
+    {
+      "token": "▁Geçen",
+      "plain": "Geçen",
+      "samba_id": 36434,
+      "frequency": 90355,
+      "score": 9035850.0
+    },
+    {
+      "token": "▁alınan",
+      "plain": "alınan",
+      "samba_id": 33744,
+      "frequency": 89970,
+      "score": 8997350.0
+    },
+    {
+      "token": "▁Şey",
+      "plain": "Şey",
+      "samba_id": 39160,
+      "frequency": 89855,
+      "score": 8985850.0
+    },
+    {
+      "token": "▁başarılı",
+      "plain": "başarılı",
+      "samba_id": 33457,
+      "frequency": 89592,
+      "score": 8959550.0
+    },
+    {
+      "token": "▁Yaptığı",
+      "plain": "Yaptığı",
+      "samba_id": 52921,
+      "frequency": 88626,
+      "score": 8862950.0
+    },
+    {
+      "token": "▁Günü",
+      "plain": "Günü",
+      "samba_id": 35098,
+      "frequency": 87623,
+      "score": 8762650.0
+    },
+    {
+      "token": "▁şeklinde",
+      "plain": "şeklinde",
+      "samba_id": 33534,
+      "frequency": 87382,
+      "score": 8738550.0
+    },
+    {
+      "token": "▁Güzel",
+      "plain": "Güzel",
+      "samba_id": 34709,
+      "frequency": 86848,
+      "score": 8685150.0
+    },
+    {
+      "token": "▁açısından",
+      "plain": "açısından",
+      "samba_id": 33433,
+      "frequency": 86766,
+      "score": 8676950.0
+    },
+    {
+      "token": "▁ülke",
+      "plain": "ülke",
+      "samba_id": 33723,
+      "frequency": 86692,
+      "score": 8669550.0
+    },
+    {
+      "token": "▁değildir",
+      "plain": "değildir",
+      "samba_id": 33076,
+      "frequency": 85998,
+      "score": 8600150.0
+    },
+    {
+      "token": "▁güçlü",
+      "plain": "güçlü",
+      "samba_id": 33561,
+      "frequency": 85946,
+      "score": 8594950.0
+    }
+  ],
+  "rejected_preview": []
+}

@@ -19,13 +19,16 @@ if [ ! -d "$CHECKPOINT_PATH" ]; then
 fi
 
 echo "=================================================="
-echo "Resuming Mamba CPT Training"
+echo "Resuming Jamba2 CPT Training"
 echo "Checkpoint: $CHECKPOINT_PATH"
 echo "Extra args: $@"
 echo "=================================================="
 
-# Activate virtual environment
-source ./venv/bin/activate
+# Activate conda environment
+CONDA_ENV="${CONDA_ENV:-tr_jamba2_cpt}"
+echo "Activating conda environment: $CONDA_ENV"
+eval "$(conda shell.bash hook)"
+conda activate "$CONDA_ENV"
 
 # Run training with resume
 python train.py \
