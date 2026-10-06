@@ -1,0 +1,76 @@
+{
+  "upstream_revision": "53b6abd197ba2fee7f2bda69f684c8173adafdaa",
+  "functions": [
+    {
+      "path": "src/linguai_quality/contracts.py",
+      "sha256": "f492f60720e5f3c1b82b503fce7b6c7720e7454659712962bef000225fae19c5",
+      "functions": [
+        "document_id"
+      ]
+    },
+    {
+      "path": "scripts/train_student.py",
+      "sha256": "cfdfb5bae30baa6e5288abc53f63568ea3486ad80199eca2ada01e284945e795",
+      "functions": [
+        "encode_text"
+      ]
+    },
+    {
+      "path": "scripts/classify_student_pilot.py",
+      "sha256": "c0f9dcc629c7f691dce0bff3e8c20494eadc402b724dca62810072378ccaf920",
+      "functions": [
+        "encode_text_for_inference"
+      ]
+    },
+    {
+      "path": "scripts/classify_student_stream.py",
+      "sha256": "c6c0e2cf55f24c43d44810a98890b10b6ebeacbb95087dd7db0b59e319bd30ed",
+      "functions": [
+        "prepare_batch"
+      ]
+    }
+  ],
+  "source": {
+    "id": "fineweb2-tur",
+    "repo": "HuggingFaceFW/fineweb-2",
+    "revision": "af9c13333eb981300149d5ca60a8e9d659b276b9",
+    "config": "tur_Latn",
+    "split": "train"
+  },
+  "records": [
+    {
+      "source_id": "fineweb2-tur",
+      "row_ordinal": 0,
+      "doc_id": "doc_ff319dc39923613327d554d52b97259ae119b88b235aa85cc94349f854582d34",
+      "document_hash": "4d4ca256413596c194206a0d3e728d10fe2747b4840f14bb0ef24d732c206180",
+      "input_bytes": 11,
+      "input_truncated": false,
+      "text": "  Türkçe\n",
+      "predicted_label_json": "{\"id\": \"doc_ff319dc39923613327d554d52b97259ae119b88b235aa85cc94349f854582d34\", \"noise\": [], \"q\": {\"cleanliness\": 3, \"coherence\": 3, \"information\": 3, \"utility\": 3}, \"type\": \"prose\"}",
+      "predicted_route": "KEEP"
+    },
+    {
+      "source_id": "fineweb2-tur",
+      "row_ordinal": 2,
+      "doc_id": "doc_c7e13063e052d513aff0f8eb77cb3d39c395d99bb215d3ec7813141ff48da3f2",
+      "document_hash": "79417030eb3e3595794af7f974b1fb8db97515eee253efff61f3408a71b0f718",
+      "input_bytes": 160,
+      "input_truncated": true,
+      "text": "uzun Türkçe metin uzun Türkçe metin uzun Türkçe metin uzun Türkçe metin uzun Türkçe metin uzun Türkçe metin uzun Türkçe metin uzun Türkçe metin ",
+      "predicted_label_json": "{\"id\": \"doc_c7e13063e052d513aff0f8eb77cb3d39c395d99bb215d3ec7813141ff48da3f2\", \"noise\": [], \"q\": {\"cleanliness\": 3, \"coherence\": 3, \"information\": 3, \"utility\": 3}, \"type\": \"prose\"}",
+      "predicted_route": "KEEP"
+    },
+    {
+      "source_id": "fineweb2-tur",
+      "row_ordinal": 48125000,
+      "doc_id": "doc_0fb80d60b17b0e6a742700177d73faf81f88c68c188bceb547bd401f817b0446",
+      "document_hash": "c9f8b5fc7023a2cc70d9f949e898812cb95686e2206ca6287f58a463f4f143e2",
+      "input_bytes": 15,
+      "input_truncated": false,
+      "text": "Şard sınırı",
+      "predicted_label_json": "{\"id\": \"doc_0fb80d60b17b0e6a742700177d73faf81f88c68c188bceb547bd401f817b0446\", \"noise\": [], \"q\": {\"cleanliness\": 3, \"coherence\": 3, \"information\": 3, \"utility\": 3}, \"type\": \"prose\"}",
+      "predicted_route": "KEEP"
+    }
+  ],
+  "scope": "Real producer metadata functions with deterministic fake tokenizer; labels synthetic, no student quality claim"
+}

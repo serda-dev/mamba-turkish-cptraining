@@ -267,7 +267,9 @@ def iter_classified_texts(config: dict, split: str = "train") -> Iterator[str]:
                 digest = document_hash(text)
                 if digest != row["document_hash"] or document_id(source, ordinal, text) != row["doc_id"]:
                     raise ValueError(f"Identity/hash mismatch at {sid}:{ordinal}; do not change hash contract to bypass")
-                if not row["input_truncated"] and row["input_bytes"] != len(text.encode("utf-8")):
+                # The producer records full raw UTF-8 bytes even when its BERT
+                # input was shortened to a head/tail sketch.
+                if row["input_bytes"] != len(text.encode("utf-8")):
                     raise ValueError(f"input_bytes mismatch at {sid}:{ordinal}")
                 route = row["predicted_route"]
                 chosen_split = content_split(digest, fraction, int(settings.get("split_seed", 42)))
@@ -311,7 +313,7 @@ def iter_classified_texts(config: dict, split: str = "train") -> Iterator[str]:
                     "audit_db": str(db), "requested_split": split,
                     "split_algorithm": "SHA256(seed:UTF8-content-SHA256), 256-bit threshold",
                     "validation_fraction": fraction, "split_seed": int(settings.get("split_seed", 42)),
-                    "identity_contract": "linguai_quality.contracts.document_id at 8ce7c69855e018fb697c7c6872347a4d354d171a; full raw UTF8 SHA256",
+                    "identity_contract": "classify_student_stream.prepare_batch + linguai_quality.contracts.document_id at 53b6abd197ba2fee7f2bda69f684c8173adafdaa; full raw UTF8 SHA256",
                     "accepted_routes": sorted(accepted),
                     "cosmos_review_evidence": settings.get("cosmos_review_evidence"),
                     "deduplication": "global exact UTF8 SHA256; no near-duplicate guarantee"}

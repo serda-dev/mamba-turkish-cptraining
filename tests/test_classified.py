@@ -148,3 +148,40 @@ def test_identity_matches_independent_pinned_upstream_vectors(vector):
     from src.data.classified import document_hash
     assert document_hash(vector['text']) == vector['document_hash']
     assert document_id(vector['source'], vector['ordinal'], vector['text']) == vector['doc_id']
+
+
+WRITER_FIXTURE = json.loads((Path(__file__).parent / 'fixtures' / 'upstream_student_writer_v1.json').read_text())
+
+
+@pytest.mark.parametrize('row', WRITER_FIXTURE['records'])
+def test_actual_student_writer_metadata_matches_cpt_identity(row):
+    from src.data.classified import document_hash
+    assert document_id(WRITER_FIXTURE['source'], row['row_ordinal'], row['text']) == row['doc_id']
+    assert document_hash(row['text']) == row['document_hash']
+    assert len(row['text'].encode('utf-8')) == row['input_bytes']
+
+
+def test_student_writer_parquet_preserves_sparse_ordinals_and_truncation_gate(tmp_path):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    rows = WRITER_FIXTURE['records'][:2]
+    raw = tmp_path / 'raw.jsonl'
+    raw.write_text(''.join(json.dumps({'text': t}) + '\n' for t in [rows[0]['text'], '', rows[1]['text']]))
+    labels = tmp_path / 'predictions.parquet'
+    pq.write_table(pa.Table.from_pylist([{k: v for k, v in r.items() if k != 'text'} for r in rows]), labels)
+    source = dict(WRITER_FIXTURE['source'], text_field='text', license='ODC-By', local_path=str(raw))
+    settings = {'source_plan': {'sources': [source]}, 'labels_local_path': str(labels),
+                'audit_db': str(tmp_path / 'audit.sqlite')}
+    config = {'datasets': {'turkish': {'classified': settings}}}
+    assert list(iter_classified_texts(config, 'all')) == [rows[0]['text']]
+    with sqlite3.connect(settings['audit_db']) as db:
+        assert list(db.execute('SELECT ordinal,decision FROM decisions ORDER BY ordinal')) == [
+            (0, 'accepted'), (2, 'truncated_input_review')]
+
+
+def test_truncated_input_still_requires_full_raw_byte_count(tmp_path):
+    config, settings, labels = fixture_config(tmp_path, {'one': [('Türkçe uzun metin', 'KEEP')]})
+    labels[0].update(input_truncated=True, input_bytes=1)
+    rewrite_labels(settings, labels)
+    with pytest.raises(ValueError, match='input_bytes mismatch'):
+        list(iter_classified_texts(config, 'all'))
