@@ -1,0 +1,1127 @@
+{
+  "labels_repo": "serda-dev/filtered-turkish-dataset",
+  "revision": "388300940d3675640553e817e2b6eae1b3b6947b",
+  "method": "first, middle, last Parquet part per source; evenly spaced up to 10k rows each; metadata only, not a raw-text or global quality audit",
+  "summary": {
+    "bella-akademik": {
+      "sampled_rows": 30000,
+      "truncated": 5907,
+      "eligible_nontruncated": 24005,
+      "eligible_input_bytes": 38485796,
+      "routes": {
+        "PREMIUM": 29714,
+        "DETERMINISTIC_REPAIR": 46,
+        "REVIEW": 54,
+        "KEEP": 157,
+        "DROP": 9,
+        "MODEL_REPAIR": 20
+      },
+      "eligible_types": {
+        "general": 499,
+        "conversation": 3,
+        "academic_technical": 23365,
+        "legal_official": 116,
+        "reference": 10,
+        "noise_unknown": 2,
+        "creative": 9,
+        "news": 1
+      },
+      "eligible_fraction": 0.8001666666666667,
+      "truncated_fraction": 0.1969,
+      "mean_eligible_input_bytes": 1603.2408248281608
+    },
+    "bella-mc4": {
+      "sampled_rows": 30000,
+      "truncated": 6761,
+      "eligible_nontruncated": 20350,
+      "eligible_input_bytes": 27567475,
+      "routes": {
+        "PREMIUM": 23197,
+        "KEEP": 2092,
+        "REVIEW": 1881,
+        "DETERMINISTIC_REPAIR": 2705,
+        "DROP": 54,
+        "MODEL_REPAIR": 71
+      },
+      "eligible_types": {
+        "general": 6025,
+        "news": 12305,
+        "legal_official": 258,
+        "conversation": 920,
+        "creative": 177,
+        "academic_technical": 521,
+        "reference": 144
+      },
+      "eligible_fraction": 0.6783333333333333,
+      "truncated_fraction": 0.22536666666666666,
+      "mean_eligible_input_bytes": 1354.6670761670762
+    },
+    "bella-oscar": {
+      "sampled_rows": 30000,
+      "truncated": 7397,
+      "eligible_nontruncated": 18122,
+      "eligible_input_bytes": 22878321,
+      "routes": {
+        "REVIEW": 2996,
+        "PREMIUM": 20845,
+        "DROP": 70,
+        "KEEP": 2699,
+        "DETERMINISTIC_REPAIR": 3339,
+        "MODEL_REPAIR": 51
+      },
+      "eligible_types": {
+        "general": 8315,
+        "news": 7085,
+        "conversation": 1059,
+        "academic_technical": 825,
+        "creative": 258,
+        "legal_official": 346,
+        "reference": 232,
+        "noise_unknown": 2
+      },
+      "eligible_fraction": 0.6040666666666666,
+      "truncated_fraction": 0.24656666666666666,
+      "mean_eligible_input_bytes": 1262.4611521907075
+    },
+    "bella-ozenli": {
+      "sampled_rows": 30000,
+      "truncated": 9124,
+      "eligible_nontruncated": 19178,
+      "eligible_input_bytes": 23601068,
+      "routes": {
+        "PREMIUM": 25393,
+        "KEEP": 1947,
+        "DETERMINISTIC_REPAIR": 1522,
+        "REVIEW": 1074,
+        "DROP": 13,
+        "MODEL_REPAIR": 51
+      },
+      "eligible_types": {
+        "general": 8411,
+        "news": 5971,
+        "conversation": 905,
+        "creative": 1505,
+        "academic_technical": 2189,
+        "structured_data": 93,
+        "reference": 70,
+        "legal_official": 34
+      },
+      "eligible_fraction": 0.6392666666666666,
+      "truncated_fraction": 0.3041333333333333,
+      "mean_eligible_input_bytes": 1230.632391281677
+    },
+    "cosmos": {
+      "sampled_rows": 30000,
+      "truncated": 14054,
+      "eligible_nontruncated": 3285,
+      "eligible_input_bytes": 3280033,
+      "routes": {
+        "DETERMINISTIC_REPAIR": 10488,
+        "PREMIUM": 3829,
+        "REVIEW": 12183,
+        "DROP": 1182,
+        "KEEP": 2252,
+        "MODEL_REPAIR": 66
+      },
+      "eligible_types": {
+        "general": 1244,
+        "news": 784,
+        "academic_technical": 243,
+        "legal_official": 61,
+        "reference": 513,
+        "conversation": 252,
+        "creative": 65,
+        "noise_unknown": 114,
+        "structured_data": 9
+      },
+      "eligible_fraction": 0.1095,
+      "truncated_fraction": 0.46846666666666664,
+      "mean_eligible_input_bytes": 998.4879756468797
+    },
+    "fineweb2-tur-files-00-14": {
+      "sampled_rows": 30000,
+      "truncated": 9547,
+      "eligible_nontruncated": 15504,
+      "eligible_input_bytes": 20897647,
+      "routes": {
+        "REVIEW": 2561,
+        "DETERMINISTIC_REPAIR": 5307,
+        "PREMIUM": 19555,
+        "KEEP": 2030,
+        "MODEL_REPAIR": 67,
+        "DROP": 480
+      },
+      "eligible_types": {
+        "general": 4288,
+        "news": 9061,
+        "legal_official": 189,
+        "academic_technical": 324,
+        "conversation": 922,
+        "reference": 564,
+        "creative": 154,
+        "structured_data": 1,
+        "noise_unknown": 1
+      },
+      "eligible_fraction": 0.5168,
+      "truncated_fraction": 0.3182333333333333,
+      "mean_eligible_input_bytes": 1347.8874484004127
+    },
+    "fineweb2-tur-files-14-30": {
+      "sampled_rows": 24129,
+      "truncated": 8927,
+      "eligible_nontruncated": 11188,
+      "eligible_input_bytes": 15491249,
+      "routes": {
+        "PREMIUM": 14700,
+        "DETERMINISTIC_REPAIR": 5319,
+        "REVIEW": 2175,
+        "MODEL_REPAIR": 49,
+        "KEEP": 1386,
+        "DROP": 500
+      },
+      "eligible_types": {
+        "news": 6870,
+        "general": 3112,
+        "conversation": 388,
+        "academic_technical": 249,
+        "legal_official": 157,
+        "reference": 313,
+        "creative": 98,
+        "structured_data": 1
+      },
+      "eligible_fraction": 0.46367441667702763,
+      "truncated_fraction": 0.36996974594885823,
+      "mean_eligible_input_bytes": 1384.6307651054701
+    },
+    "mogan": {
+      "sampled_rows": 30000,
+      "truncated": 10447,
+      "eligible_nontruncated": 17057,
+      "eligible_input_bytes": 21189718,
+      "routes": {
+        "PREMIUM": 22451,
+        "REVIEW": 1997,
+        "KEEP": 2540,
+        "DETERMINISTIC_REPAIR": 2892,
+        "DROP": 99,
+        "MODEL_REPAIR": 21
+      },
+      "eligible_types": {
+        "legal_official": 262,
+        "general": 3804,
+        "news": 10881,
+        "creative": 202,
+        "reference": 1187,
+        "academic_technical": 435,
+        "conversation": 165,
+        "structured_data": 120,
+        "noise_unknown": 1
+      },
+      "eligible_fraction": 0.5685666666666667,
+      "truncated_fraction": 0.34823333333333334,
+      "mean_eligible_input_bytes": 1242.2886791346662
+    }
+  },
+  "parts": [
+    {
+      "source": "bella-akademik",
+      "file": "data/bella-akademik/part-000000000000-000000100000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 1259,
+      "eligible_nontruncated": 8711,
+      "eligible_input_bytes": 14674966,
+      "routes": {
+        "PREMIUM": 9927,
+        "DETERMINISTIC_REPAIR": 8,
+        "REVIEW": 24,
+        "KEEP": 34,
+        "DROP": 6,
+        "MODEL_REPAIR": 1
+      },
+      "types": {
+        "creative": 165,
+        "general": 583,
+        "conversation": 46,
+        "academic_technical": 9166,
+        "legal_official": 26,
+        "structured_data": 5,
+        "news": 1,
+        "reference": 6,
+        "noise_unknown": 2
+      },
+      "eligible_types": {
+        "general": 128,
+        "conversation": 1,
+        "academic_technical": 8556,
+        "legal_official": 23,
+        "reference": 2,
+        "noise_unknown": 1
+      }
+    },
+    {
+      "source": "bella-akademik",
+      "file": "data/bella-akademik/part-000000500000-000000600000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 4356,
+      "eligible_nontruncated": 5617,
+      "eligible_input_bytes": 8928854,
+      "routes": {
+        "PREMIUM": 9872,
+        "MODEL_REPAIR": 5,
+        "KEEP": 74,
+        "DETERMINISTIC_REPAIR": 34,
+        "REVIEW": 14,
+        "DROP": 1
+      },
+      "types": {
+        "academic_technical": 9654,
+        "general": 245,
+        "reference": 15,
+        "legal_official": 70,
+        "creative": 7,
+        "structured_data": 2,
+        "noise_unknown": 3,
+        "conversation": 3,
+        "news": 1
+      },
+      "eligible_types": {
+        "academic_technical": 5421,
+        "general": 131,
+        "reference": 6,
+        "legal_official": 52,
+        "creative": 6,
+        "noise_unknown": 1
+      }
+    },
+    {
+      "source": "bella-akademik",
+      "file": "data/bella-akademik/part-000000900000-000000965862.parquet",
+      "rows_in_file": 65862,
+      "sampled_rows": 10000,
+      "truncated": 292,
+      "eligible_nontruncated": 9677,
+      "eligible_input_bytes": 14881976,
+      "routes": {
+        "PREMIUM": 9915,
+        "KEEP": 49,
+        "MODEL_REPAIR": 14,
+        "REVIEW": 16,
+        "DETERMINISTIC_REPAIR": 4,
+        "DROP": 2
+      },
+      "types": {
+        "academic_technical": 9679,
+        "general": 251,
+        "reference": 7,
+        "legal_official": 41,
+        "conversation": 5,
+        "noise_unknown": 2,
+        "news": 1,
+        "creative": 13,
+        "structured_data": 1
+      },
+      "eligible_types": {
+        "academic_technical": 9388,
+        "general": 240,
+        "reference": 2,
+        "legal_official": 41,
+        "conversation": 2,
+        "news": 1,
+        "creative": 3
+      }
+    },
+    {
+      "source": "bella-mc4",
+      "file": "data/bella-mc4/part-000000000000-000000100000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 2233,
+      "eligible_nontruncated": 6782,
+      "eligible_input_bytes": 9215998,
+      "routes": {
+        "PREMIUM": 7720,
+        "KEEP": 702,
+        "REVIEW": 644,
+        "DETERMINISTIC_REPAIR": 893,
+        "DROP": 19,
+        "MODEL_REPAIR": 22
+      },
+      "types": {
+        "general": 3997,
+        "news": 4767,
+        "conversation": 620,
+        "legal_official": 161,
+        "reference": 88,
+        "creative": 88,
+        "academic_technical": 254,
+        "noise_unknown": 24,
+        "structured_data": 1
+      },
+      "eligible_types": {
+        "general": 2010,
+        "news": 4110,
+        "legal_official": 98,
+        "conversation": 313,
+        "creative": 58,
+        "academic_technical": 143,
+        "reference": 50
+      }
+    },
+    {
+      "source": "bella-mc4",
+      "file": "data/bella-mc4/part-000027900000-000028000000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 2276,
+      "eligible_nontruncated": 6764,
+      "eligible_input_bytes": 9144806,
+      "routes": {
+        "PREMIUM": 7691,
+        "DETERMINISTIC_REPAIR": 951,
+        "REVIEW": 593,
+        "KEEP": 725,
+        "MODEL_REPAIR": 25,
+        "DROP": 15
+      },
+      "types": {
+        "academic_technical": 306,
+        "news": 4724,
+        "conversation": 629,
+        "reference": 91,
+        "general": 4019,
+        "legal_official": 120,
+        "creative": 90,
+        "noise_unknown": 20,
+        "structured_data": 1
+      },
+      "eligible_types": {
+        "news": 4062,
+        "general": 2021,
+        "academic_technical": 185,
+        "conversation": 310,
+        "legal_official": 84,
+        "creative": 62,
+        "reference": 40
+      }
+    },
+    {
+      "source": "bella-mc4",
+      "file": "data/bella-mc4/part-000055800000-000055882753.parquet",
+      "rows_in_file": 82753,
+      "sampled_rows": 10000,
+      "truncated": 2252,
+      "eligible_nontruncated": 6804,
+      "eligible_input_bytes": 9206671,
+      "routes": {
+        "PREMIUM": 7786,
+        "KEEP": 665,
+        "DETERMINISTIC_REPAIR": 861,
+        "REVIEW": 644,
+        "MODEL_REPAIR": 24,
+        "DROP": 20
+      },
+      "types": {
+        "creative": 89,
+        "news": 4772,
+        "general": 3958,
+        "conversation": 621,
+        "academic_technical": 311,
+        "reference": 98,
+        "legal_official": 127,
+        "structured_data": 3,
+        "noise_unknown": 21
+      },
+      "eligible_types": {
+        "creative": 57,
+        "news": 4133,
+        "conversation": 297,
+        "academic_technical": 193,
+        "general": 1994,
+        "reference": 54,
+        "legal_official": 76
+      }
+    },
+    {
+      "source": "bella-oscar",
+      "file": "data/bella-oscar/part-000000000000-000000100000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 2113,
+      "eligible_nontruncated": 6659,
+      "eligible_input_bytes": 7828461,
+      "routes": {
+        "REVIEW": 771,
+        "PREMIUM": 7380,
+        "DROP": 15,
+        "KEEP": 1050,
+        "DETERMINISTIC_REPAIR": 767,
+        "MODEL_REPAIR": 17
+      },
+      "types": {
+        "general": 5283,
+        "news": 2989,
+        "conversation": 830,
+        "noise_unknown": 20,
+        "academic_technical": 455,
+        "creative": 167,
+        "legal_official": 153,
+        "reference": 103
+      },
+      "eligible_types": {
+        "general": 3180,
+        "news": 2335,
+        "conversation": 552,
+        "academic_technical": 316,
+        "creative": 121,
+        "legal_official": 101,
+        "reference": 54
+      }
+    },
+    {
+      "source": "bella-oscar",
+      "file": "data/bella-oscar/part-000009800000-000009900000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 2160,
+      "eligible_nontruncated": 6523,
+      "eligible_input_bytes": 8192801,
+      "routes": {
+        "DETERMINISTIC_REPAIR": 1003,
+        "REVIEW": 877,
+        "PREMIUM": 7240,
+        "KEEP": 829,
+        "DROP": 27,
+        "MODEL_REPAIR": 24
+      },
+      "types": {
+        "general": 5194,
+        "news": 3268,
+        "conversation": 542,
+        "reference": 216,
+        "academic_technical": 443,
+        "legal_official": 168,
+        "noise_unknown": 36,
+        "creative": 128,
+        "structured_data": 5
+      },
+      "eligible_types": {
+        "news": 2841,
+        "general": 2782,
+        "conversation": 301,
+        "academic_technical": 308,
+        "legal_official": 98,
+        "reference": 109,
+        "creative": 83,
+        "noise_unknown": 1
+      }
+    },
+    {
+      "source": "bella-oscar",
+      "file": "data/bella-oscar/part-000019600000-000019612617.parquet",
+      "rows_in_file": 12617,
+      "sampled_rows": 10000,
+      "truncated": 3124,
+      "eligible_nontruncated": 4940,
+      "eligible_input_bytes": 6857059,
+      "routes": {
+        "REVIEW": 1348,
+        "PREMIUM": 6225,
+        "KEEP": 820,
+        "DETERMINISTIC_REPAIR": 1569,
+        "DROP": 28,
+        "MODEL_REPAIR": 10
+      },
+      "types": {
+        "general": 5833,
+        "news": 2584,
+        "legal_official": 325,
+        "creative": 98,
+        "conversation": 439,
+        "noise_unknown": 110,
+        "reference": 217,
+        "academic_technical": 386,
+        "structured_data": 8
+      },
+      "eligible_types": {
+        "news": 1909,
+        "general": 2353,
+        "legal_official": 147,
+        "creative": 54,
+        "conversation": 206,
+        "reference": 69,
+        "academic_technical": 201,
+        "noise_unknown": 1
+      }
+    },
+    {
+      "source": "bella-ozenli",
+      "file": "data/bella-ozenli/part-000000000000-000000100000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 1875,
+      "eligible_nontruncated": 7315,
+      "eligible_input_bytes": 11661837,
+      "routes": {
+        "PREMIUM": 8430,
+        "KEEP": 175,
+        "DETERMINISTIC_REPAIR": 970,
+        "REVIEW": 424,
+        "DROP": 1
+      },
+      "types": {
+        "general": 5093,
+        "conversation": 540,
+        "news": 4248,
+        "creative": 25,
+        "academic_technical": 61,
+        "reference": 21,
+        "structured_data": 4,
+        "legal_official": 6,
+        "noise_unknown": 2
+      },
+      "eligible_types": {
+        "general": 3150,
+        "news": 4016,
+        "conversation": 93,
+        "creative": 7,
+        "academic_technical": 40,
+        "structured_data": 1,
+        "reference": 6,
+        "legal_official": 2
+      }
+    },
+    {
+      "source": "bella-ozenli",
+      "file": "data/bella-ozenli/part-000000800000-000000900000.parquet",
+      "rows_in_file": 99999,
+      "sampled_rows": 10000,
+      "truncated": 6428,
+      "eligible_nontruncated": 3494,
+      "eligible_input_bytes": 5353631,
+      "routes": {
+        "PREMIUM": 9383,
+        "KEEP": 403,
+        "DETERMINISTIC_REPAIR": 128,
+        "REVIEW": 85,
+        "MODEL_REPAIR": 1
+      },
+      "types": {
+        "conversation": 1425,
+        "general": 5195,
+        "creative": 199,
+        "news": 2969,
+        "academic_technical": 56,
+        "legal_official": 36,
+        "reference": 22,
+        "structured_data": 95,
+        "noise_unknown": 3
+      },
+      "eligible_types": {
+        "general": 1365,
+        "conversation": 623,
+        "news": 1307,
+        "legal_official": 10,
+        "academic_technical": 25,
+        "creative": 64,
+        "reference": 8,
+        "structured_data": 92
+      }
+    },
+    {
+      "source": "bella-ozenli",
+      "file": "data/bella-ozenli/part-000001500000-000001588082.parquet",
+      "rows_in_file": 88082,
+      "sampled_rows": 10000,
+      "truncated": 821,
+      "eligible_nontruncated": 8369,
+      "eligible_input_bytes": 6585600,
+      "routes": {
+        "PREMIUM": 7580,
+        "REVIEW": 565,
+        "DETERMINISTIC_REPAIR": 424,
+        "KEEP": 1369,
+        "DROP": 12,
+        "MODEL_REPAIR": 50
+      },
+      "types": {
+        "general": 4785,
+        "conversation": 286,
+        "news": 998,
+        "creative": 1587,
+        "academic_technical": 2169,
+        "structured_data": 4,
+        "legal_official": 26,
+        "reference": 140,
+        "noise_unknown": 5
+      },
+      "eligible_types": {
+        "general": 3896,
+        "news": 648,
+        "conversation": 189,
+        "academic_technical": 2124,
+        "legal_official": 22,
+        "reference": 56,
+        "creative": 1434
+      }
+    },
+    {
+      "source": "cosmos",
+      "file": "data/cosmos/part-000000000000-000000100000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 3664,
+      "eligible_nontruncated": 1445,
+      "eligible_input_bytes": 1226476,
+      "routes": {
+        "DETERMINISTIC_REPAIR": 3672,
+        "PREMIUM": 1447,
+        "REVIEW": 3421,
+        "DROP": 666,
+        "KEEP": 758,
+        "MODEL_REPAIR": 36
+      },
+      "types": {
+        "news": 1155,
+        "legal_official": 91,
+        "noise_unknown": 613,
+        "general": 3066,
+        "reference": 3963,
+        "conversation": 618,
+        "academic_technical": 255,
+        "structured_data": 148,
+        "creative": 91
+      },
+      "eligible_types": {
+        "general": 567,
+        "news": 165,
+        "academic_technical": 141,
+        "legal_official": 22,
+        "reference": 309,
+        "conversation": 149,
+        "creative": 15,
+        "noise_unknown": 74,
+        "structured_data": 3
+      }
+    },
+    {
+      "source": "cosmos",
+      "file": "data/cosmos/part-000004500000-000004600000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 5169,
+      "eligible_nontruncated": 938,
+      "eligible_input_bytes": 1068519,
+      "routes": {
+        "REVIEW": 4431,
+        "DETERMINISTIC_REPAIR": 3344,
+        "PREMIUM": 1217,
+        "KEEP": 735,
+        "DROP": 259,
+        "MODEL_REPAIR": 14
+      },
+      "types": {
+        "reference": 2357,
+        "general": 4413,
+        "news": 1451,
+        "legal_official": 118,
+        "conversation": 572,
+        "noise_unknown": 624,
+        "structured_data": 143,
+        "academic_technical": 193,
+        "creative": 129
+      },
+      "eligible_types": {
+        "reference": 108,
+        "news": 316,
+        "noise_unknown": 19,
+        "academic_technical": 59,
+        "legal_official": 20,
+        "general": 333,
+        "creative": 26,
+        "conversation": 52,
+        "structured_data": 5
+      }
+    },
+    {
+      "source": "cosmos",
+      "file": "data/cosmos/part-000009000000-000009075453.parquet",
+      "rows_in_file": 75453,
+      "sampled_rows": 10000,
+      "truncated": 5221,
+      "eligible_nontruncated": 902,
+      "eligible_input_bytes": 985038,
+      "routes": {
+        "DETERMINISTIC_REPAIR": 3472,
+        "REVIEW": 4331,
+        "PREMIUM": 1165,
+        "KEEP": 759,
+        "DROP": 257,
+        "MODEL_REPAIR": 16
+      },
+      "types": {
+        "general": 4400,
+        "reference": 2339,
+        "structured_data": 142,
+        "conversation": 588,
+        "news": 1488,
+        "noise_unknown": 595,
+        "creative": 152,
+        "academic_technical": 181,
+        "legal_official": 115
+      },
+      "eligible_types": {
+        "general": 344,
+        "news": 303,
+        "reference": 96,
+        "academic_technical": 43,
+        "noise_unknown": 21,
+        "creative": 24,
+        "conversation": 51,
+        "legal_official": 19,
+        "structured_data": 1
+      }
+    },
+    {
+      "source": "fineweb2-tur-files-00-14",
+      "file": "data/fineweb2-tur-files-00-14/part-000000000000-000000100000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 2989,
+      "eligible_nontruncated": 5491,
+      "eligible_input_bytes": 7278899,
+      "routes": {
+        "REVIEW": 807,
+        "DETERMINISTIC_REPAIR": 1428,
+        "PREMIUM": 6938,
+        "KEEP": 763,
+        "MODEL_REPAIR": 15,
+        "DROP": 49
+      },
+      "types": {
+        "general": 3486,
+        "conversation": 1008,
+        "creative": 155,
+        "news": 4215,
+        "academic_technical": 275,
+        "reference": 640,
+        "legal_official": 166,
+        "noise_unknown": 46,
+        "structured_data": 9
+      },
+      "eligible_types": {
+        "general": 1483,
+        "news": 3093,
+        "legal_official": 58,
+        "academic_technical": 132,
+        "conversation": 425,
+        "reference": 226,
+        "creative": 72,
+        "structured_data": 1,
+        "noise_unknown": 1
+      }
+    },
+    {
+      "source": "fineweb2-tur-files-00-14",
+      "file": "data/fineweb2-tur-files-00-14/part-000024100000-000024200000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 3458,
+      "eligible_nontruncated": 5076,
+      "eligible_input_bytes": 7191723,
+      "routes": {
+        "PREMIUM": 6827,
+        "DETERMINISTIC_REPAIR": 1741,
+        "DROP": 160,
+        "REVIEW": 739,
+        "KEEP": 512,
+        "MODEL_REPAIR": 21
+      },
+      "types": {
+        "news": 3949,
+        "general": 4424,
+        "reference": 461,
+        "conversation": 525,
+        "legal_official": 158,
+        "creative": 120,
+        "noise_unknown": 97,
+        "academic_technical": 239,
+        "structured_data": 27
+      },
+      "eligible_types": {
+        "news": 3006,
+        "general": 1562,
+        "creative": 44,
+        "conversation": 167,
+        "reference": 109,
+        "legal_official": 78,
+        "academic_technical": 110
+      }
+    },
+    {
+      "source": "fineweb2-tur-files-00-14",
+      "file": "data/fineweb2-tur-files-00-14/part-000048100000-000048125000.parquet",
+      "rows_in_file": 25000,
+      "sampled_rows": 10000,
+      "truncated": 3100,
+      "eligible_nontruncated": 4937,
+      "eligible_input_bytes": 6427025,
+      "routes": {
+        "PREMIUM": 5790,
+        "DETERMINISTIC_REPAIR": 2138,
+        "REVIEW": 1015,
+        "DROP": 271,
+        "KEEP": 755,
+        "MODEL_REPAIR": 31
+      },
+      "types": {
+        "news": 4449,
+        "general": 3359,
+        "academic_technical": 160,
+        "reference": 640,
+        "conversation": 955,
+        "noise_unknown": 218,
+        "creative": 103,
+        "legal_official": 93,
+        "structured_data": 23
+      },
+      "eligible_types": {
+        "news": 2962,
+        "general": 1243,
+        "academic_technical": 82,
+        "reference": 229,
+        "conversation": 330,
+        "creative": 38,
+        "legal_official": 53
+      }
+    },
+    {
+      "source": "fineweb2-tur-files-14-30",
+      "file": "data/fineweb2-tur-files-14-30/part-000048125000-000048225000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 3600,
+      "eligible_nontruncated": 4872,
+      "eligible_input_bytes": 6773143,
+      "routes": {
+        "PREMIUM": 6526,
+        "DETERMINISTIC_REPAIR": 1882,
+        "REVIEW": 812,
+        "MODEL_REPAIR": 28,
+        "KEEP": 535,
+        "DROP": 217
+      },
+      "types": {
+        "legal_official": 131,
+        "news": 4028,
+        "general": 4231,
+        "conversation": 562,
+        "reference": 486,
+        "academic_technical": 266,
+        "noise_unknown": 155,
+        "creative": 107,
+        "structured_data": 34
+      },
+      "eligible_types": {
+        "news": 2972,
+        "general": 1389,
+        "conversation": 161,
+        "academic_technical": 124,
+        "legal_official": 77,
+        "reference": 107,
+        "creative": 42
+      }
+    },
+    {
+      "source": "fineweb2-tur-files-14-30",
+      "file": "data/fineweb2-tur-files-14-30/part-000071625000-000071725000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 3590,
+      "eligible_nontruncated": 4468,
+      "eligible_input_bytes": 6055115,
+      "routes": {
+        "PREMIUM": 5520,
+        "REVIEW": 1095,
+        "DETERMINISTIC_REPAIR": 2446,
+        "DROP": 232,
+        "KEEP": 691,
+        "MODEL_REPAIR": 16
+      },
+      "types": {
+        "general": 3742,
+        "news": 4257,
+        "conversation": 723,
+        "reference": 685,
+        "academic_technical": 166,
+        "noise_unknown": 196,
+        "legal_official": 93,
+        "structured_data": 35,
+        "creative": 103
+      },
+      "eligible_types": {
+        "news": 2789,
+        "general": 1152,
+        "conversation": 194,
+        "academic_technical": 85,
+        "legal_official": 51,
+        "reference": 157,
+        "creative": 39,
+        "structured_data": 1
+      }
+    },
+    {
+      "source": "fineweb2-tur-files-14-30",
+      "file": "data/fineweb2-tur-files-14-30/part-000095125000-000095129129.parquet",
+      "rows_in_file": 4129,
+      "sampled_rows": 4129,
+      "truncated": 1737,
+      "eligible_nontruncated": 1848,
+      "eligible_input_bytes": 2662991,
+      "routes": {
+        "REVIEW": 268,
+        "PREMIUM": 2654,
+        "KEEP": 160,
+        "DETERMINISTIC_REPAIR": 991,
+        "DROP": 51,
+        "MODEL_REPAIR": 5
+      },
+      "types": {
+        "general": 2102,
+        "academic_technical": 91,
+        "legal_official": 56,
+        "conversation": 113,
+        "news": 1487,
+        "reference": 210,
+        "noise_unknown": 28,
+        "creative": 36,
+        "structured_data": 6
+      },
+      "eligible_types": {
+        "academic_technical": 40,
+        "legal_official": 29,
+        "general": 571,
+        "news": 1109,
+        "reference": 49,
+        "conversation": 33,
+        "creative": 17
+      }
+    },
+    {
+      "source": "mogan",
+      "file": "data/mogan/part-000000000000-000000100000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 3639,
+      "eligible_nontruncated": 5563,
+      "eligible_input_bytes": 7038812,
+      "routes": {
+        "PREMIUM": 7457,
+        "REVIEW": 708,
+        "KEEP": 861,
+        "DETERMINISTIC_REPAIR": 950,
+        "DROP": 15,
+        "MODEL_REPAIR": 9
+      },
+      "types": {
+        "general": 3286,
+        "legal_official": 211,
+        "reference": 990,
+        "news": 4903,
+        "academic_technical": 259,
+        "conversation": 107,
+        "structured_data": 134,
+        "creative": 105,
+        "noise_unknown": 5
+      },
+      "eligible_types": {
+        "legal_official": 90,
+        "general": 1305,
+        "news": 3662,
+        "creative": 46,
+        "reference": 247,
+        "academic_technical": 143,
+        "conversation": 38,
+        "structured_data": 32
+      }
+    },
+    {
+      "source": "mogan",
+      "file": "data/mogan/part-000016200000-000016300000.parquet",
+      "rows_in_file": 100000,
+      "sampled_rows": 10000,
+      "truncated": 3215,
+      "eligible_nontruncated": 6115,
+      "eligible_input_bytes": 7582405,
+      "routes": {
+        "PREMIUM": 7594,
+        "KEEP": 962,
+        "REVIEW": 534,
+        "DETERMINISTIC_REPAIR": 870,
+        "DROP": 33,
+        "MODEL_REPAIR": 7
+      },
+      "types": {
+        "news": 4667,
+        "general": 2737,
+        "reference": 1599,
+        "creative": 194,
+        "structured_data": 120,
+        "conversation": 151,
+        "academic_technical": 315,
+        "legal_official": 199,
+        "noise_unknown": 18
+      },
+      "eligible_types": {
+        "news": 3732,
+        "general": 1202,
+        "reference": 707,
+        "creative": 85,
+        "conversation": 76,
+        "academic_technical": 168,
+        "legal_official": 121,
+        "structured_data": 23,
+        "noise_unknown": 1
+      }
+    },
+    {
+      "source": "mogan",
+      "file": "data/mogan/part-000032400000-000032462870.parquet",
+      "rows_in_file": 62870,
+      "sampled_rows": 10000,
+      "truncated": 3593,
+      "eligible_nontruncated": 5379,
+      "eligible_input_bytes": 6568501,
+      "routes": {
+        "PREMIUM": 7400,
+        "KEEP": 717,
+        "REVIEW": 755,
+        "DETERMINISTIC_REPAIR": 1072,
+        "DROP": 51,
+        "MODEL_REPAIR": 5
+      },
+      "types": {
+        "news": 4440,
+        "general": 3514,
+        "conversation": 147,
+        "academic_technical": 303,
+        "reference": 992,
+        "legal_official": 112,
+        "structured_data": 347,
+        "creative": 127,
+        "noise_unknown": 18
+      },
+      "eligible_types": {
+        "news": 3487,
+        "general": 1297,
+        "conversation": 51,
+        "academic_technical": 124,
+        "legal_official": 51,
+        "structured_data": 65,
+        "reference": 233,
+        "creative": 71
+      }
+    }
+  ]
+}
