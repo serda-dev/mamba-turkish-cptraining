@@ -166,6 +166,8 @@ def _index_labels(conn, settings, sources):
             raise ValueError("Label-index budget exceeded; select representative labels_files and a new audit_db")
         if count % 10000 == 0:
             conn.commit()
+            if count % 100000 == 0:
+                print(f"LABEL_INDEX rows={count}", flush=True)
             used_bytes = conn.execute("PRAGMA page_count").fetchone()[0] * conn.execute("PRAGMA page_size").fetchone()[0]
             if used_bytes > int(settings.get("max_audit_bytes", 10 * 1024**3)):
                 raise ValueError("Audit disk budget exceeded; reduce labels_files or explicitly raise budget")
@@ -194,7 +196,7 @@ def _joined_rows(conn, source):
         raise ValueError(f"Source ended before labeled row {sid}:{pending[0]}")
 
 
-def _interleaved_rows(conn, plan, settings):
+def _interleaved_rows(conn, plan, settings, token_counts=None):
     # Smooth weighted round robin guarantees every active source makes progress.
     # Seven source streams and label cursors are bounded; no source text is buffered.
     active = [(src, iter(_joined_rows(conn, src))) for src in plan["sources"]]
@@ -206,6 +208,13 @@ def _interleaved_rows(conn, plan, settings):
             raise ValueError("source_weights must be finite and positive")
     try:
         while active:
+            if token_counts is not None:
+                chosen = min(range(len(active)), key=lambda idx: token_counts[active[idx][0]["id"]] / float(weights[active[idx][0]["id"]]))
+                try:
+                    yield next(active[chosen][1])
+                except StopIteration:
+                    raise ValueError(f"Token quota source exhausted: {active[chosen][0]['id']}; enlarge its label pool")
+                continue
             total = sum(float(weights.get(src["id"], 1.0)) for src, _ in active)
             for src, _ in active:
                 scores[src["id"]] += float(weights.get(src["id"], 1.0))
@@ -221,7 +230,7 @@ def _interleaved_rows(conn, plan, settings):
             stream.close()
 
 
-def iter_classified_texts(config: dict, split: str = "train") -> Iterator[str]:
+def iter_classified_texts(config: dict, split: str = "train", tokenizer=None) -> Iterator[str]:
     """Yield verified PREMIUM/KEEP text; audit all routes and exact duplicates.
 
     A fresh pass reuses immutable label metadata but reconstructs source text again.
@@ -250,6 +259,14 @@ def iter_classified_texts(config: dict, split: str = "train") -> Iterator[str]:
     conn.execute("PRAGMA cache_size=-16384")
     conn.execute("PRAGMA temp_store=FILE")
     fingerprint = _fingerprint(settings, plan)
+    token_counts = {sid: 0 for sid in sources}
+    token_mode = settings.get("source_mix_unit") == "tokens"
+    if token_mode and tokenizer is None:
+        conn.close()
+        raise ValueError("Token source mixing requires tokenizer")
+    if token_mode and set(settings.get("source_weights", {})) != set(sources):
+        conn.close()
+        raise ValueError("Token source weights must cover exactly the selected source plan")
     complete, failure, processed = False, None, 0
     try:
         conn.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT)")
@@ -261,7 +278,7 @@ def iter_classified_texts(config: dict, split: str = "train") -> Iterator[str]:
         conn.execute("DELETE FROM decisions")
         conn.execute("DELETE FROM seen")
         conn.commit()
-        joined = _interleaved_rows(conn, plan, settings)
+        joined = _interleaved_rows(conn, plan, settings, token_counts if token_mode else None)
         try:
             for source, ordinal, raw, row in joined:
                 sid = source["id"]
@@ -291,6 +308,8 @@ def iter_classified_texts(config: dict, split: str = "train") -> Iterator[str]:
                 if processed % 10000 == 0:
                     conn.commit()
                 if decision == "accepted" and split in {chosen_split, "all"}:
+                    if token_mode:
+                        token_counts[sid] += len(tokenizer.encode(text, add_special_tokens=False)) + 1
                     yield text
         finally:
             joined.close()
@@ -313,6 +332,8 @@ def iter_classified_texts(config: dict, split: str = "train") -> Iterator[str]:
                     "labels_files": settings.get("labels_files"), "labels_pattern": settings.get("labels_pattern", "*.parquet"),
                     "label_scope": "explicit_shard_subset" if settings.get("labels_files") else "all_matching_label_shards",
                     "source_weights": settings.get("source_weights", "equal_source_round_robin"),
+                    "source_mix_unit": settings.get("source_mix_unit", "documents"),
+                    "yielded_source_tokens": token_counts if token_mode else None,
                     "audit_disk_bytes": db.stat().st_size,
                     "audit_db": str(db), "requested_split": split,
                     "split_algorithm": "SHA256(seed:UTF8-content-SHA256), 256-bit threshold",

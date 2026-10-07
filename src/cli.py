@@ -174,7 +174,9 @@ def build_phase_text_stream(
     data_cfg = config.get("datasets", {}).get("turkish", config.get("data", {}))
     min_text_length = int(data_cfg.get("min_text_length", config.get("data", {}).get("min_text_length", 50)))
     strip_legacy = bool(data_cfg.get("strip_legacy_endoftext", True))
-    tr_texts = iter_turkish_texts(phase_manifest, config)
+    tr_texts = (iter_turkish_texts(phase_manifest, config, tokenizer=tokenizer)
+                if data_cfg.get("classified", {}).get("source_mix_unit") == "tokens"
+                else iter_turkish_texts(phase_manifest, config))
     en_texts = iter_english_texts(phase, config)
     mix_cfg = phase.get("mix", {})
     seed = int(config.get("project", {}).get("seed", config.get("seed", 42))) + int(phase["id"])
@@ -352,7 +354,9 @@ def command_validate_datasets(args: argparse.Namespace) -> int:
     result = prepare_manifests(config, get_manifest_dir(config))
     if config.get("datasets", {}).get("turkish", {}).get("classified"):
         from .data.classified import iter_classified_texts
-        stream = iter_classified_texts(config)
+        settings = config["datasets"]["turkish"]["classified"]
+        tokenizer = load_tokenizer_for_cli(config["model"]["tokenizer"]) if settings.get("source_mix_unit") == "tokens" else None
+        stream = iter_classified_texts(config, tokenizer=tokenizer)
         verified = 0
         try:
             for _ in range(args.max_documents):

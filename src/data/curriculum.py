@@ -228,7 +228,7 @@ def resolve_turkish_file_paths(phase_manifest: Dict[str, Any], cache_dir: str) -
     return files
 
 
-def iter_turkish_texts(phase_manifest: Dict[str, Any], config: Dict[str, Any]) -> Iterator[str]:
+def iter_turkish_texts(phase_manifest: Dict[str, Any], config: Dict[str, Any], tokenizer=None) -> Iterator[str]:
     tr_cfg = config.get("datasets", {}).get("turkish", config.get("data", {}))
     if tr_cfg.get("classified"):
         from .classified import iter_classified_texts
@@ -240,7 +240,7 @@ def iter_turkish_texts(phase_manifest: Dict[str, Any], config: Dict[str, Any]) -
             for key in ("audit_db", "manifest_path"):
                 path = Path(settings[key])
                 settings[key] = str(path.with_name(path.stem + "_" + split + path.suffix))
-        yield from iter_classified_texts(config, split=split)
+        yield from iter_classified_texts(config, split=split, tokenizer=tokenizer)
         return
     text_column = tr_cfg.get("text_column", tr_cfg.get("text_field", "text"))
     cache_dir = config.get("paths", {}).get("cache_dir", "./cache")

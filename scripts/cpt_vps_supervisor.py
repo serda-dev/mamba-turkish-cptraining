@@ -212,400 +212,59 @@ def main():
             if instance.get('actual_status') != 'running':
                 if time.time()-state['started_at'] > 1800:
                     vast('stop','instance',state['instance_id'])
-                    save(state,'PAUSED_RECOVERY_REQUIRED',error='…21003 tokens truncated…end(param)
-            else:
-                decay_params.append(param)
+                    save(state,'PAUSED_RECOVERY_REQUIRED',error='Instance failed to start within 30 minutes')
+                    return
+                time.sleep(60)
+                continue
+            state['ssh_host'],state['ssh_port'] = instance['ssh_host'],instance['ssh_port']
+            if not state.get('remote_started'):
+                ssh(state,'mkdir -p /mnt/home_extra /workspace/mamba-cpt-tr')
+                make_archive()
+                save(state,code_archive_sha256=hashlib.sha256((ROOT/'code.tar.gz').read_bytes()).hexdigest())
+                copy_to(state,ROOT/'code.tar.gz','/mnt/home_extra/code.tar.gz')
+                ssh(state,'tar -xzf /mnt/home_extra/code.tar.gz -C /workspace/mamba-cpt-tr')
+                copy_to(state,ROOT/'cache','/mnt/home_extra/',recursive=True)
+                copy_to(state,ROOT/'manifest','/mnt/home_extra/',recursive=True)
+                copy_to(state,ROOT/'run.yaml','/mnt/home_extra/run.yaml')
+                ssh(state,'umask 077; cat > /mnt/home_extra/hf_token',
+                    data=Path('/home/serda/.cache/huggingface/token').read_bytes())
+                save(state,'LAUNCHING_REMOTE',remote_launch_requested=True)
+                # A restart during launch checks for a live process before creating another.
+                launch = 'cd /workspace/mamba-cpt-tr; if ! pgrep -f "^python -u -m scripts.cpt_remote_run$" >/dev/null; then nohup env HF_HOME=/mnt/home_extra/hf-cache HUGGINGFACE_HUB_CACHE=/mnt/home_extra/hf-cache/hub TRANSFORMERS_CACHE=/mnt/home_extra/hf-cache/transformers python -u -m scripts.cpt_remote_run > /mnt/home_extra/training.log 2>&1 < /dev/null & echo $! > /mnt/home_extra/job.pid; fi'
+                ssh(state,launch)
+                save(state,'RUNNING',remote_started=True)
+            if spent >= 86 or user['credit'] <= 11:
+                ssh(state,'touch /mnt/home_extra/STOP')
+                save(state,'STOP_REQUESTED',spent_estimate=spent)
+            probe = "python -c \"import json,os,time; from pathlib import Path; r=Path('/mnt/home_extra'); s=json.loads((r/'run_status.json').read_text()) if (r/'run_status.json').exists() else {}; s['alive']=Path('/proc/'+(r/'job.pid').read_text().strip()).exists(); s['log_age']=time.time()-(r/'training.log').stat().st_mtime; print(json.dumps(s))\""
+            remote = json.loads(ssh(state,probe))
+            state['remote_status'] = remote
+            save(state,spent_estimate=spent,credit=user['credit'])
+            if remote['log_age'] > 3600 and remote['alive']:
+                # First recheck occurred in earlier 10-minute polling passes; request safe save.
+                ssh(state,'touch /mnt/home_extra/STOP')
+            if not remote['alive']:
+                # Export and verify before destroying; exceptions retain the instance until recovery/budget stop.
+                receipt = recover_and_verify(state)
+                if remote.get('state') == 'DONE' and (receipt.get('no_checkpoint') or
+                        not receipt['checkpoint_metadata']['phase_completed'] or
+                        receipt['checkpoint_metadata']['tokens_seen'] != 1000000000):
+                    raise ValueError('DONE state does not match final verified checkpoint')
+                for path in ['run_status.json','training.log','eval_baseline.json','eval_100m.json','eval_final.json']:
+                    try:
+                        content = ssh(state,'cat '+shlex.quote('/mnt/home_extra/'+path),timeout=90)
+                        (ROOT/('remote_'+path)).write_text(content)
+                    except subprocess.CalledProcessError:
+                        pass
+                vast('destroy','instance',state['instance_id'],'-y')
+                save(state,'COMPLETE' if remote.get('state') == 'DONE' else 'STOPPED_EXPORTED',hub_receipt=receipt)
+                return
+            time.sleep(600)
+        except Exception as exc:
+            # Do not log command arguments which might contain credentials.
+            save(state,error=type(exc).__name__)
+            time.sleep(60)
 
-        param_groups = [
-            {"params": decay_params, "weight_decay": self.weight_decay},
-            {"params": no_decay_params, "weight_decay": 0.0},
-        ]
 
-        if self.optimizer_name == "adamw":
-            self.optimizer = AdamW(
-                param_groups,
-                lr=self.lr,
-                betas=(self.adam_beta1, self.adam_beta2),
-                eps=self.adam_epsilon,
-            )
-            logger.info("Optimizer: AdamW (torch)")
-        elif self.optimizer_name == "adamw_8bit":
-            try:
-                import bitsandbytes as bnb
-            except ImportError as exc:
-                raise ImportError(
-                    "optimizer=adamw_8bit requires bitsandbytes. "
-                    "Install the pinned package from requirements.txt."
-                ) from exc
-
-            self.optimizer = bnb.optim.AdamW8bit(
-                param_groups,
-                lr=self.lr,
-                betas=(self.adam_beta1, self.adam_beta2),
-                eps=self.adam_epsilon,
-            )
-            logger.info("Optimizer: AdamW8bit (bitsandbytes)")
-        else:
-            raise ValueError(f"Unsupported optimizer: {self.optimizer_name}")
-
-        logger.info(
-            "Optimizer settings: lr=%s, weight_decay=%s, betas=(%s, %s), eps=%s",
-            self.lr,
-            self.weight_decay,
-            self.adam_beta1,
-            self.adam_beta2,
-            self.adam_epsilon,
-        )
-
-    def _setup_scheduler(self):
-        """Setup learning rate scheduler with warmup."""
-        if self.warmup_ratio is not None:
-            self.warmup_steps = int(max(0, self.max_steps * float(self.warmup_ratio)))
-
-        if self.warmup_steps <= 0:
-            if self.scheduler_name == "cosine":
-                self.scheduler = CosineAnnealingLR(self.optimizer, T_max=max(1, self.max_steps))
-            elif self.scheduler_name in ("constant", "linear_constant"):
-                self.scheduler = ConstantLR(self.optimizer, factor=1.0, total_iters=max(1, self.max_steps))
-            else:
-                raise ValueError(f"Unsupported scheduler: {self.scheduler_name}")
-            return
-
-        warmup_scheduler = LinearLR(
-            self.optimizer,
-            start_factor=0.1,
-            end_factor=1.0,
-            total_iters=self.warmup_steps,
-        )
-        remaining_steps = max(1, self.max_steps - self.warmup_steps)
-        if self.scheduler_name == "cosine":
-            main_scheduler = CosineAnnealingLR(
-                self.optimizer,
-                T_max=remaining_steps,
-                eta_min=0.0,
-            )
-        elif self.scheduler_name in ("constant", "linear_constant"):
-            main_scheduler = ConstantLR(
-                self.optimizer,
-                factor=1.0,
-                total_iters=remaining_steps,
-            )
-        else:
-            raise ValueError(f"Unsupported scheduler: {self.scheduler_name}")
-
-        self.scheduler = SequentialLR(
-            self.optimizer,
-            schedulers=[warmup_scheduler, main_scheduler],
-            milestones=[self.warmup_steps],
-        )
-
-        logger.info(
-            "Scheduler: %s with linear warmup for %s steps",
-            self.scheduler_name,
-            self.warmup_steps,
-        )
-
-    def _setup_scaler(self):
-        """Setup dtype for mixed precision (bf16 doesn't need GradScaler)."""
-        if self.mixed_precision and self.device.type == "cuda":
-            # Determine amp dtype
-            if self.amp_dtype in ("bfloat16", "bf16"):
-                self.amp_torch_dtype = torch.bfloat16
-                self.use_grad_scaler = False  # bf16 doesn't need scaling
-                logger.info("Mixed precision: enabled (bfloat16, no GradScaler)")
-            else:
-                self.amp_torch_dtype = torch.float16
-                self.use_grad_scaler = True
-                from torch.amp import GradScaler
-                self.scaler = GradScaler('cuda')
-                logger.info("Mixed precision: enabled (fp16 with GradScaler)")
-        else:
-            self.amp_torch_dtype = None
-            self.use_grad_scaler = False
-            logger.info("Mixed precision: disabled")
-
-    def _setup_logger(self):
-        """Setup metrics logger."""
-        self.metrics_logger = MetricsLogger(
-            log_dir=self.log_dir,
-            log_json=self.config.get("logging", {}).get("log_json", True),
-        )
-
-    def _get_gpu_memory(self) -> Optional[float]:
-        """Get current GPU memory usage in GB."""
-        if torch.cuda.is_available():
-            return torch.cuda.memory_allocated() / 1e9
-        return None
-
-    def _capture_rng(self):
-        return {
-            "python": random.getstate(), "numpy": np.random.get_state(),
-            "torch": torch.get_rng_state(),
-            "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
-            "loader": self.train_loader.generator.get_state() if self.train_loader.generator is not None else None,
-        }
-
-    def _restore_rng(self, state):
-        random.setstate(state["python"])
-        np.random.set_state(state["numpy"])
-        torch.set_rng_state(state["torch"].cpu())
-        if state["cuda"] is not None:
-            torch.cuda.set_rng_state_all([value.cpu() for value in state["cuda"]])
-        if state["loader"] is not None:
-            self.train_loader.generator.set_state(state["loader"].cpu())
-
-    def _data_iterator(self):
-        if self._epoch_rng is None:
-            self._epoch_rng = self._capture_rng()
-        else:
-            self._restore_rng(self._epoch_rng)
-        iterator = iter(self.train_loader)
-        for _ in range(self.batches_consumed):
-            try:
-                next(iterator)
-            except StopIteration as exc:
-                raise ValueError("Resume cursor exceeds dataset") from exc
-        if self._resume_rng is not None:
-            self._restore_rng(self._resume_rng)
-            self._resume_rng = None
-        return iterator
-
-    def _save_checkpoint(self, step: int, is_final: bool = False):
-        """Publish complete checkpoints before updating the latest pointer."""
-        ckpt_name = "final" if is_final and self.phase_completed else (
-            f"stopped_step_{step:06d}" if is_final else f"step_{step:06d}"
-        )
-        ckpt_path = self.checkpoint_dir / ckpt_name
-        if ckpt_path.exists():
-            # Never overwrite a published checkpoint in place.
-            ckpt_path = self.checkpoint_dir / f"{ckpt_name}_{time.time_ns()}"
-        checkpoint_rng = self._capture_rng()
-        temporary = Path(tempfile.mkdtemp(prefix=".incomplete-", dir=self.checkpoint_dir))
-        try:
-            self.model.save_pretrained(temporary)
-            if self.tokenizer is not None:
-                self.tokenizer.save_pretrained(temporary)
-            state = {
-                "state_version": 2, "step": step,
-                "optimizer_state_dict": self.optimizer.state_dict(),
-                "scheduler_state_dict": self.scheduler.state_dict(),
-                "tokens_seen": self.tokens_seen, "loss_tokens_seen": self.loss_tokens_seen,
-                "phase": self.phase_id, "phase_name": self.phase_name,
-                "source_sample_counts": self.source_sample_counts,
-                "source_token_counts": self.source_token_counts,
-                "epoch": self.epoch, "batches_consumed": self.batches_consumed,
-                "repeated_tokens": self.repeated_tokens,
-                "epoch_rng": self._epoch_rng, "rng": checkpoint_rng,
-                "data_signature": self.data_signature,
-                "training_signature": self.training_signature,
-                "phase_completed": self.phase_completed, "stop_reason": self.stop_reason,
-            }
-            if self.use_grad_scaler:
-                state["scaler_state_dict"] = self.scaler.state_dict()
-            torch.save(state, temporary / "training_state.pt")
-            (temporary / "checkpoint_metadata.json").write_text(json.dumps({
-                "phase": self.phase_id, "phase_completed": self.phase_completed,
-                "stop_reason": self.stop_reason, "step": step, "tokens_seen": self.tokens_seen,
-                "data_signature": self.data_signature, "training_signature": self.training_signature,
-            }, indent=2))
-            from ..config import save_yaml_config
-            save_yaml_config(self.config, str(temporary / "resolved_config.yaml"))
-            temporary.rename(ckpt_path)
-        except BaseException:
-            shutil.rmtree(temporary, ignore_errors=True)
-            raise
-        hub_repo = self.config.get("checkpointing", {}).get("hub_repo")
-        if hub_repo:
-            from .hub import upload_checkpoint
-            upload_checkpoint(ckpt_path, hub_repo)
-        write_latest_metadata(str(self.checkpoint_root), {
-            "latest_checkpoint": str(ckpt_path.resolve()),
-            "phase": self.phase_id, "phase_name": self.phase_name,
-            "step": step, "tokens_seen": self.tokens_seen,
-            "phase_completed": self.phase_completed, "stop_reason": self.stop_reason,
-        })
-        if not is_final:
-            self._cleanup_checkpoints()
-        if hub_repo:
-            from .hub import prune_remote_checkpoints
-            try:
-                prune_remote_checkpoints(hub_repo, keep=self.save_total_limit)
-            except Exception as exc:
-                logger.warning("Remote checkpoint pruning failed: %s", type(exc).__name__)
-
-    def _cleanup_checkpoints(self):
-        """Remove old checkpoints beyond save_total_limit."""
-        checkpoints = sorted([
-            d for d in self.checkpoint_dir.iterdir()
-            if d.is_dir() and d.name.startswith("step_")
-        ], key=lambda x: x.stat().st_mtime)
-
-        if self.save_total_limit is None:
-            return
-
-        while len(checkpoints) > self.save_total_limit:
-            old_ckpt = checkpoints.pop(0)
-            logger.info(f"Removing old checkpoint: {old_ckpt}")
-            import shutil
-            shutil.rmtree(old_ckpt)
-
-    def train(self) -> Dict[str, Any]:
-        """Train a finite pass unless repetition is explicitly enabled.
-
-        Checkpoints are taken only at optimizer boundaries. A partial final
-        accumulation is normalized by its actual supervised token count.
-        """
-        self.model.train()
-        self.start_time = time.time()
-        budget = TimeBudget(self.time_budget_seconds)
-        iterator = self._data_iterator()
-        self.optimizer.zero_grad(set_to_none=True)
-        count = supervised = step_tokens = 0
-        loss_sum = 0.0
-        step_start = time.time()
-        normalization = max(1, self.seq_len * self.micro_batch_size * self.gradient_accumulation_steps)
-        pbar = tqdm(total=self.max_steps, initial=self.global_step, desc="Training", unit="step")
-
-        def update():
-            nonlocal count, supervised, step_tokens, loss_sum, step_start
-            if self.use_grad_scaler:
-                self.scaler.unscale_(self.optimizer)
-            for parameter in self.model.parameters():
-                if parameter.grad is not None:
-                    parameter.grad.mul_(normalization / supervised)
-            norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm, error_if_nonfinite=True)
-            if not torch.isfinite(norm):
-                raise FloatingPointError("Non-finite gradient norm")
-            if self.use_grad_scaler:
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            else:
-                self.optimizer.step()
-            self.scheduler.step()
-            self.optimizer.zero_grad(set_to_none=True)
-            self.global_step += 1
-            duration = max(time.time() - step_start, 1e-9)
-            if self.log_every_steps and self.global_step % self.log_every_steps == 0:
-                elapsed = time.time() - self.start_time
-                self.metrics_logger.log({
-                    "step": self.global_step, "phase": self.phase_id, "phase_name": self.phase_name,
-                    "loss": loss_sum / supervised, "lr": self.scheduler.get_last_lr()[0],
-                    "tokens_per_sec": step_tokens / duration, "step_time": duration,
-                    "gpu_memory_gb": self._get_gpu_memory(), "elapsed_seconds": elapsed,
-                    "total_tokens": self.tokens_seen, "loss_tokens": self.loss_tokens_seen,
-                    "repeated_tokens": self.repeated_tokens,
-                    "source_token_counts": dict(self.source_token_counts),
-                })
-            if self.checkpoint_every_steps and self.global_step % self.checkpoint_every_steps == 0:
-                self._save_checkpoint(self.global_step)
-            if self.empty_cache_every_steps and self.global_step % self.empty_cache_every_steps == 0:
-                torch.cuda.empty_cache()
-            count = supervised = step_tokens = 0
-            loss_sum = 0.0
-            step_start = time.time()
-            pbar.update(1)
-
-        try:
-            while self.global_step < self.max_steps:
-                if self.stop_file and Path(self.stop_file).exists():
-                    self.stop_reason = "budget_or_operator_stop"
-                    break
-                if self.stop_after_steps is not None and self.global_step >= self.stop_after_steps:
-                    self.stop_reason = "operator_limit"
-                    break
-                if self.max_tokens is not None and self.tokens_seen >= self.max_tokens:
-                    self.stop_reason = "max_tokens"
-                    break
-                if budget.is_expired():
-                    self.stop_reason = "time_budget"
-                    break
-                try:
-                    batch = next(iterator)
-                except StopIteration:
-                    if not self.repeat_dataset:
-                        self.stop_reason = "dataset_exhausted"
-                        break
-                    if self.batches_consumed == 0:
-                        raise ValueError("Training dataset is empty")
-                    self.epoch += 1
-                    self.batches_consumed = 0
-                    self._epoch_rng = None
-                    iterator = self._data_iterator()
-                    continue
-                input_ids = batch["input_ids"].to(self.device)
-                labels = batch["labels"].to(self.device).clone()
-                mask = batch["attention_mask"].to(self.device).clone()
-                if self.max_tokens is not None:
-                    remaining = self.max_tokens - self.tokens_seen
-                    keep = mask.bool() & (mask.reshape(-1).cumsum(0).reshape_as(mask) <= remaining)
-                    mask = keep.to(mask.dtype)
-                labels.masked_fill_(~mask.bool(), -100)
-                # HF causal losses shift labels by one position.
-                n_supervised = int((labels[:, 1:] != -100).sum().item())
-                n_tokens = int(mask.sum().item())
-                if n_supervised == 0:
-                    if self.max_tokens is not None and remaining == 1:
-                        self.stop_reason = "unsupervised_token_remainder"
-                        break
-                    raise ValueError("Batch/token remainder contains no causal training targets")
-                with autocast(device_type=self.device.type, dtype=self.amp_torch_dtype, enabled=self.amp_torch_dtype is not None):
-                    outputs = self.model(input_ids=input_ids, attention_mask=mask, labels=labels)
-                    raw_loss = outputs.loss
-                if not torch.isfinite(raw_loss).all():
-                    raise FloatingPointError("Non-finite training loss; checkpoint was not published")
-                scaled_loss = raw_loss * (n_supervised / normalization)
-                if self.use_grad_scaler:
-                    self.scaler.scale(scaled_loss).backward()
-                else:
-                    scaled_loss.backward()
-                count += 1
-                supervised += n_supervised
-                loss_sum += raw_loss.detach().item() * n_supervised
-                step_tokens += n_tokens
-                self.tokens_seen += n_tokens
-                self.loss_tokens_seen += n_supervised
-                self.batches_consumed += 1
-                if self.epoch > 0:
-                    self.repeated_tokens += n_tokens
-                token_sources = batch.get("token_source_ids")
-                names = batch.get("source")
-                if token_sources is not None:
-                    source_map = getattr(self.train_loader.dataset, "source_id_to_name", {})
-                    for source_row, valid_row in zip(token_sources, mask.cpu()):
-                        for source_id in source_row[valid_row.bool()].unique().tolist():
-                            if source_id == 0:
-                                continue
-                            name = source_map.get(int(source_id), str(source_id))
-                            tokens = int(((source_row == source_id) & valid_row.bool()).sum().item())
-                            self.source_sample_counts[name] = self.source_sample_counts.get(name, 0) + 1
-                            self.source_token_counts[name] = self.source_token_counts.get(name, 0) + tokens
-                elif names is not None:
-                    names = [names] if isinstance(names, str) else names
-                    for name, row in zip(names, mask):
-                        tokens = int(row.sum().item())
-                        if tokens:
-                            self.source_sample_counts[name] = self.source_sample_counts.get(name, 0) + 1
-                            self.source_token_counts[name] = self.source_token_counts.get(name, 0) + tokens
-                if count >= self.gradient_accumulation_steps:
-                    update()
-            if self.stop_reason is None:
-                self.stop_reason = "max_tokens" if self.max_tokens is not None and self.tokens_seen >= self.max_tokens else "max_steps"
-            if count:
-                update()
-            self.phase_completed = self.stop_reason == "max_tokens" or (
-                self.max_tokens is None and self.stop_reason in ("max_steps", "dataset_exhausted")
-            )
-            if self.save_final:
-                self._save_checkpoint(self.global_step, is_final=True)
-        finally:
-            pbar.close()
-        return {
-            "final_step": self.global_step, "total_tokens": self.tokens_seen,
-            "loss_tokens": self.loss_tokens_seen, "repeated_tokens": self.repeated_tokens,
-            "epoch": self.epoch, "batches_consumed": self.batches_consumed,
-            "total_time_seconds": time.time() - self.start_time,
-            "stop_reason": self.stop_reason, "phase_completed": self.phase_completed,
-            "phase": self.phase_id, "phase_name": self.phase_name,
-            "source_sample_counts": self.source_sample_counts,
-            "source_token_counts": self.source_token_counts,
-        }
+if __name__ == '__main__':
+    main()

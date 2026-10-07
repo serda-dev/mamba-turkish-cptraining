@@ -75,6 +75,7 @@ class Trainer:
         self.max_tokens = train_cfg.get("max_tokens")
         self.repeat_dataset = bool(train_cfg.get("repeat_dataset", False))
         self.stop_after_steps = train_cfg.get("stop_after_steps")
+        self.stop_file = train_cfg.get("stop_file")
         if self.max_tokens is not None and self.max_tokens <= 0:
             raise ValueError("max_tokens must be positive")
         if self.gradient_accumulation_steps <= 0 or self.max_steps <= 0:
@@ -420,6 +421,10 @@ class Trainer:
         except BaseException:
             shutil.rmtree(temporary, ignore_errors=True)
             raise
+        hub_repo = self.config.get("checkpointing", {}).get("hub_repo")
+        if hub_repo:
+            from .hub import upload_checkpoint
+            upload_checkpoint(ckpt_path, hub_repo)
         write_latest_metadata(str(self.checkpoint_root), {
             "latest_checkpoint": str(ckpt_path.resolve()),
             "phase": self.phase_id, "phase_name": self.phase_name,
@@ -428,6 +433,12 @@ class Trainer:
         })
         if not is_final:
             self._cleanup_checkpoints()
+        if hub_repo:
+            from .hub import prune_remote_checkpoints
+            try:
+                prune_remote_checkpoints(hub_repo, keep=self.save_total_limit)
+            except Exception as exc:
+                logger.warning("Remote checkpoint pruning failed: %s", type(exc).__name__)
 
     def _cleanup_checkpoints(self):
         """Remove old checkpoints beyond save_total_limit."""
@@ -503,6 +514,9 @@ class Trainer:
 
         try:
             while self.global_step < self.max_steps:
+                if self.stop_file and Path(self.stop_file).exists():
+                    self.stop_reason = "budget_or_operator_stop"
+                    break
                 if self.stop_after_steps is not None and self.global_step >= self.stop_after_steps:
                     self.stop_reason = "operator_limit"
                     break
