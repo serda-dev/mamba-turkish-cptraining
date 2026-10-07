@@ -17,6 +17,8 @@ import sqlite3
 from pathlib import Path
 from typing import Iterator
 
+from .streaming import closing_iterator
+
 ROUTES = {"PREMIUM", "KEEP", "REVIEW", "DETERMINISTIC_REPAIR", "MODEL_REPAIR", "DROP"}
 CLEAN_ROUTES = {"PREMIUM", "KEEP"}
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -65,7 +67,8 @@ def _source_plan(settings):
 def _load_stream(repo, subset=None, **kwargs):
     from datasets import load_dataset
     token = os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
-    return load_dataset(repo, subset, streaming=True, token=token, **kwargs)
+    with closing_iterator(load_dataset(repo, subset, streaming=True, token=token, **kwargs)) as stream:
+        yield from stream
 
 
 def _iter_labels(settings):
@@ -178,14 +181,15 @@ def _joined_rows(conn, source):
     pending = next(labels, None)
     if pending is None:
         return
-    for ordinal, raw in enumerate(_iter_source(source)):
-        if pending is None:
-            break
-        target, payload = pending
-        if ordinal < target:
-            continue
-        yield source, ordinal, raw, json.loads(payload)
-        pending = next(labels, None)
+    with closing_iterator(_iter_source(source)) as stream:
+        for ordinal, raw in enumerate(stream):
+            if pending is None:
+                break
+            target, payload = pending
+            if ordinal < target:
+                continue
+            yield source, ordinal, raw, json.loads(payload)
+            pending = next(labels, None)
     if pending is not None:
         raise ValueError(f"Source ended before labeled row {sid}:{pending[0]}")
 

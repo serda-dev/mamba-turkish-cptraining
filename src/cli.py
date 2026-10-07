@@ -29,6 +29,7 @@ from .data.curriculum import (
     read_json,
 )
 from .data.mixing import weighted_mix_texts, token_balanced_mix
+from .data.streaming import closing_iterator
 from .data.preprocess import clean_text, strip_legacy_end_markers
 from .train.checkpoint import find_latest_checkpoint, read_latest_metadata
 from .utils import check_environment, setup_logging
@@ -195,7 +196,11 @@ def build_phase_text_stream(
             source_names.append("english")
         # Classified raw text has already been verified. Avoid changing it after hash validation.
         mixed = token_balanced_mix(streams, weights, tokenizer)
-        return ((text, source_names[idx]) for text, idx in mixed)
+        def tagged_stream():
+            with closing_iterator(mixed) as stream:
+                for text, idx in stream:
+                    yield text, source_names[idx]
+        return tagged_stream()
     mixed = weighted_mix_texts(
         tr_texts,
         en_texts,

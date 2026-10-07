@@ -84,7 +84,7 @@ Paid koşu başladıktan sonra instance fiyatı × geçen süre + transfer üzer
 
 ## Kira öncesindeki sınırlı işler
 
-1. VPS'de seçili kaynak/etiket aralıklarıyla gerçek 1B cache ve ayrı küçük validation cache oluştur; yukarıdaki token dağılımını, hashleri, disk kullanımını ve temiz üretici çıkışını kontrol et. Pilot hazırlayıcısının geçerli manifest sonrası exit 139 vermesi hâlâ açık; bu çözülmeden otomatik tam koşu açma.
+1. VPS'de seçili kaynak/etiket aralıklarıyla gerçek 1B cache ve ayrı küçük validation cache oluştur; yukarıdaki token dağılımını, hashleri, disk kullanımını ve temiz üretici çıkışını kontrol et. Pilot hazırlayıcısının exit 139 sorunu [sabitlenmiş bağımlılıklar ve akış kapanışıyla düzeltildi](CACHE_EXIT_FIX_2026-10-07.md); yeni image kullan ve büyük hazırlıkta da temiz çıkış kontrolünü sürdür.
 2. Checkpoint upload doğrulaması ve $92 harcama watchdog'unu hazırla. Bunlar ek ücretli GPU benchmark'ı gerektirmez.
 3. Cache hazırken tek A100 kirala; baseline + aynı eğitimin 100M kontrolü + 1B devamı. İlk gerçek kayıtta resume/storage maliyetini ve operasyonel hızı ölçerek kalan bütçeyi güncelle.
 

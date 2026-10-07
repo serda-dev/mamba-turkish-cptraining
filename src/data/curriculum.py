@@ -4,6 +4,7 @@ import fnmatch
 import json
 import logging
 import os
+from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional
 from huggingface_hub import HfApi, hf_hub_download
 
 from .jsonl_reader import read_jsonl_files
+from .streaming import closing_iterator
 
 logger = logging.getLogger(__name__)
 
@@ -277,17 +279,18 @@ def _iter_local_english(local_path: str, text_column: str, score_column: str, sc
 def iter_english_texts(phase: Dict[str, Any], config: Dict[str, Any]) -> Iterator[str]:
     datasets = config.get("datasets", {}).get("english", {})
     if phase.get("english_sources"):
-        iterators = [iter(iter_english_texts({"english_dataset": src["dataset"],
+        with ExitStack() as stack:
+            iterators = [stack.enter_context(closing_iterator(iter_english_texts({"english_dataset": src["dataset"],
                      "english_filter": src.get("filter", {}),
-                     "english_target_gb": src.get("target_gb")}, config))
+                     "english_target_gb": src.get("target_gb")}, config)))
                      for src in phase["english_sources"]]
-        active = list(range(len(iterators)))
-        while active:
-            for i in active[:]:
-                try:
-                    yield next(iterators[i])
-                except StopIteration:
-                    active.remove(i)
+            active = list(range(len(iterators)))
+            while active:
+                for i in active[:]:
+                    try:
+                        yield next(iterators[i])
+                    except StopIteration:
+                        active.remove(i)
         return
     key = phase.get("english_dataset")
     if not key:
@@ -331,29 +334,30 @@ def iter_english_texts(phase: Dict[str, Any], config: Dict[str, Any]) -> Iterato
 
     accepted = 0
     rejected = 0
-    for row_or_text in iterator:
-        if isinstance(row_or_text, str):
-            text = row_or_text
-        else:
-            if score_gte is not None and not fineweb_score_accepts(row_or_text, score_column, score_gte):
-                rejected += 1
+    with closing_iterator(iterator) as stream:
+        for row_or_text in stream:
+            if isinstance(row_or_text, str):
+                text = row_or_text
+            else:
+                if score_gte is not None and not fineweb_score_accepts(row_or_text, score_column, score_gte):
+                    rejected += 1
+                    continue
+                text = row_or_text.get(text_column)
+            if not isinstance(text, str) or not text.strip():
                 continue
-            text = row_or_text.get(text_column)
-        if not isinstance(text, str) or not text.strip():
-            continue
-        if config.get("training", {}).get("mode") == "continuous_cpt":
-            from .classified import content_split, document_hash
-            settings = config["datasets"]["turkish"]["classified"]
-            requested = config.get("token_cache", {}).get("split", "train")
-            if content_split(document_hash(text), float(settings.get("validation_fraction", .01)),
-                             int(settings.get("split_seed", 42))) != requested:
-                continue
-        text_bytes = len(text.encode("utf-8"))
-        if target_bytes is not None and seen_bytes + text_bytes > target_bytes:
-            break
-        seen_bytes += text_bytes
-        accepted += 1
-        yield text
+            if config.get("training", {}).get("mode") == "continuous_cpt":
+                from .classified import content_split, document_hash
+                settings = config["datasets"]["turkish"]["classified"]
+                requested = config.get("token_cache", {}).get("split", "train")
+                if content_split(document_hash(text), float(settings.get("validation_fraction", .01)),
+                                 int(settings.get("split_seed", 42))) != requested:
+                    continue
+            text_bytes = len(text.encode("utf-8"))
+            if target_bytes is not None and seen_bytes + text_bytes > target_bytes:
+                break
+            seen_bytes += text_bytes
+            accepted += 1
+            yield text
     logger.info(
         "English stream complete: dataset=%s accepted=%s rejected=%s bytes=%.3fGB",
         key,

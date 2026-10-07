@@ -1,7 +1,10 @@
 """Deterministic text-source mixing for curriculum phases."""
 
 import random
+from contextlib import ExitStack
 from typing import Iterable, Iterator, Optional, Tuple
+
+from .streaming import closing_iterator
 
 
 def token_balanced_mix(streams, weights, tokenizer):
@@ -12,17 +15,18 @@ def token_balanced_mix(streams, weights, tokenizer):
     """
     if len(streams) != len(weights) or not streams or any(w <= 0 for w in weights):
         raise ValueError("Streams require matching positive token weights")
-    iterators = [iter(stream) for stream in streams]
-    counts = [0] * len(streams)
-    while True:
-        idx = min(range(len(streams)), key=lambda i: counts[i] / weights[i])
-        try:
-            text = next(iterators[idx])
-        except StopIteration:
-            return
-        tokens = tokenizer.encode(text, add_special_tokens=False)
-        counts[idx] += len(tokens) + 1
-        yield text, idx
+    with ExitStack() as stack:
+        iterators = [stack.enter_context(closing_iterator(stream)) for stream in streams]
+        counts = [0] * len(streams)
+        while True:
+            idx = min(range(len(streams)), key=lambda i: counts[i] / weights[i])
+            try:
+                text = next(iterators[idx])
+            except StopIteration:
+                return
+            tokens = tokenizer.encode(text, add_special_tokens=False)
+            counts[idx] += len(tokens) + 1
+            yield text, idx
 
 
 def weighted_mix_texts(

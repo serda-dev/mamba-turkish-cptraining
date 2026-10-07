@@ -8,6 +8,8 @@ from typing import Iterator, List, Optional, Tuple, Union
 
 from tqdm import tqdm
 
+from .streaming import closing_iterator
+
 logger = logging.getLogger(__name__)
 
 
@@ -313,15 +315,16 @@ def pack_and_tokenize_to_sharded_cache(
     chars = 0
     progress = tqdm(desc="Batch tokenizing", disable=not show_progress, initial=processed)
     try:
-        for item in _skip_items(iter(texts), processed):
-            if max_tokens is not None and total_tokens >= max_tokens:
-                break
-            pending.append(item); chars += len(_split_text_source(item)[0])
-            if len(pending) >= batch_size or chars >= 30_000_000:
-                process_batch(pending); progress.update(len(pending))
-                pending = []; chars = 0
-        if pending:
-            process_batch(pending)
+        with closing_iterator(texts) as stream:
+            for item in _skip_items(stream, processed):
+                if max_tokens is not None and total_tokens >= max_tokens:
+                    break
+                pending.append(item); chars += len(_split_text_source(item)[0])
+                if len(pending) >= batch_size or chars >= 30_000_000:
+                    process_batch(pending); progress.update(len(pending))
+                    pending = []; chars = 0
+            if pending:
+                process_batch(pending)
     except Exception:
         # Pending un-tokenized documents are replayed from the saved cursor.
         checkpoint()
