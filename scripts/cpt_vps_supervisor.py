@@ -158,6 +158,17 @@ def main():
                     if active.stdout.strip() not in {'active','activating'}:
                         save(state,'PREPARATION_FAILED',error='Preparation service stopped before CACHE_READY')
                         return
+                    if time.time()-state.get('updated_at',0) >= 600:
+                        log = ROOT/'prepare.log'
+                        with log.open('rb') as handle:
+                            handle.seek(max(0,log.stat().st_size-4096))
+                            recent = handle.read().decode('utf-8',errors='replace')
+                        import re
+                        indexed = re.findall(r'LABEL_INDEX rows=(\d+)',recent)
+                        cache = ROOT/'cache/token_cache/phase_1/manifest.json'
+                        progress = json.loads(cache.read_text()) if cache.exists() else {}
+                        save(state,preparation=prep,label_rows_indexed=int(indexed[-1]) if indexed else None,
+                             prepared_train_tokens=progress.get('total_tokens',0))
                     time.sleep(60)
                     continue
                 if not state.get('cache_validation'):
