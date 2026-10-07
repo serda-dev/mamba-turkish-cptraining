@@ -1,0 +1,88 @@
+{
+  "before_exit_code": 139,
+  "fixed_10k_exit_code": 0,
+  "fixed_10k_payload_identical": true,
+  "fixed_multi_source_exit_code": 0,
+  "tests_passed": 45,
+  "stack": {
+    "datasets": "3.1.0",
+    "pyarrow": "19.0.1",
+    "huggingface_hub": "0.36.2",
+    "fsspec": "2024.9.0"
+  },
+  "multi_source": {
+    "labels": 600000,
+    "verified_rows": 7309,
+    "raw_join_complete": false,
+    "cache_integrity_passed": true,
+    "total_tokens": 2000000,
+    "total_chunks": 977,
+    "source_token_counts": {
+      "turkish": 1592970,
+      "english": 407030
+    },
+    "source_verified_accepted": [
+      {
+        "source_id": "bella-akademik",
+        "verified_rows": 1218,
+        "accepted_rows": 3
+      },
+      {
+        "source_id": "bella-mc4",
+        "verified_rows": 1218,
+        "accepted_rows": 850
+      },
+      {
+        "source_id": "bella-oscar",
+        "verified_rows": 1218,
+        "accepted_rows": 538
+      },
+      {
+        "source_id": "bella-ozenli",
+        "verified_rows": 1218,
+        "accepted_rows": 773
+      },
+      {
+        "source_id": "fineweb2-tur",
+        "verified_rows": 1218,
+        "accepted_rows": 417
+      },
+      {
+        "source_id": "mogan",
+        "verified_rows": 1219,
+        "accepted_rows": 646
+      }
+    ],
+    "labels_revision": "388300940d3675640553e817e2b6eae1b3b6947b",
+    "labels_files": [
+      "data/fineweb2-tur-files-00-14/part-000000000000-000000100000.parquet",
+      "data/mogan/part-000000000000-000000100000.parquet",
+      "data/bella-akademik/part-000000000000-000000100000.parquet",
+      "data/bella-ozenli/part-000000000000-000000100000.parquet",
+      "data/bella-mc4/part-000000000000-000000100000.parquet",
+      "data/bella-oscar/part-000000000000-000000100000.parquet"
+    ],
+    "shards": [
+      {
+        "num_chunks": 977,
+        "tokens": 2000000,
+        "sha256": {
+          "path": "79eddc3e8c5362d1edc56c8eadedf9ba4ca39d6e73f2f1ec202e6c17cf1a58c2",
+          "source_ids_path": "89cd80a0443e7da74d55681ee0c916b3c88fc083e4a2920eafd6055fe587bba8",
+          "token_source_ids_path": "b89c56eb3108b0cb8bb8fe263dd430287c4ddee28674d5d5ef7df3c600a96657",
+          "valid_lengths_path": "874df768ad8fd5a23308961e68476e8c5fd2a35b4f59741d2ebf1c3fd49ea806"
+        },
+        "path": "shard_000000.bin",
+        "source_ids_path": "shard_000000.source_ids.bin",
+        "token_source_ids_path": "shard_000000.token_sources.bin",
+        "valid_lengths_path": "shard_000000.valid_lengths.bin"
+      }
+    ]
+  },
+  "production_image": {
+    "tag": "serdadev/jamba2-cpt:pilot-786a53b-r3",
+    "digest": "sha256:5762cb5fffab046aca0c6c3a7a32fbc1733a8f51352b54244f738f0b6f4eb8e4",
+    "anonymous_pull_manifest_verified": true,
+    "fresh_10k_process_exit_code": 0
+  }
+}

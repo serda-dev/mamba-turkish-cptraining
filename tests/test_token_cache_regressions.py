@@ -91,6 +91,50 @@ def test_token_budget_and_short_tail_are_exact(tmp_path):
     assert values(tmp_path, m, "path", np.uint32).tolist() == [97, 98, 99, 2, 100, 2, 2, 2]
 
 
+def test_budget_stop_closes_all_nested_language_streams(tmp_path, monkeypatch):
+    from src.cli import build_phase_text_stream
+
+    closed = []
+    def source(name):
+        try:
+            while True:
+                yield name
+        finally:
+            closed.append(name)
+
+    monkeypatch.setattr("src.cli.iter_turkish_texts", lambda *args: source("tr"))
+    monkeypatch.setattr("src.cli.iter_english_texts",
+                        lambda phase, config: source(phase.get("english_dataset", "unused")))
+    class MixTokenizer(Tokenizer):
+        def encode(self, text, **kwargs):
+            return self([text])["input_ids"][0]
+    tok = MixTokenizer()
+    phase = {"id": 1, "mix": {"unit": "tokens", "turkish_ratio": .8},
+             "english_sources": [{"dataset": name} for name in ("en", "math", "code")]}
+    texts = build_phase_text_stream({}, phase, {}, tok)
+    manifest = pack_and_tokenize_to_sharded_cache(
+        texts, tok, seq_len=4, cache_dir=str(tmp_path), batch_size=1,
+        chunks_per_shard=2, max_tokens=40, show_progress=False,
+    )
+    assert sorted(closed) == ["code", "en", "math", "tr"]
+    assert manifest["total_tokens"] == 40
+    assert token_cache_is_complete(str(tmp_path), 4)
+
+
+def test_reader_close_failure_does_not_publish_complete_cache(tmp_path):
+    def failing_close():
+        try:
+            while True:
+                yield "abc"
+        finally:
+            raise RuntimeError("reader shutdown failed")
+    with pytest.raises(RuntimeError, match="reader shutdown failed"):
+        build(tmp_path, failing_close(), max_tokens=5)
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert not manifest["complete"]
+    assert not token_cache_is_complete(str(tmp_path), 4)
+
+
 def test_padding_labels_preserve_real_eos(tmp_path):
     pytest.importorskip("torch")
     from src.data.dataloader import ShardedMemmapPackedDataset

@@ -43,6 +43,11 @@ python -m pip install --no-cache-dir \
   "transformers==4.56.1" \
   "einops==0.8.2" \
   "bitsandbytes==0.48.1" \
+  "accelerate>=1.0,<2" \
+  "datasets==3.1.0" \
+  "huggingface_hub==0.36.2" \
+  "pyarrow==19.0.1" \
+  "fsspec==2024.9.0" \
   "numpy>=1.24.0" \
   "pyyaml>=6.0" \
   "tqdm>=4.65.0" \

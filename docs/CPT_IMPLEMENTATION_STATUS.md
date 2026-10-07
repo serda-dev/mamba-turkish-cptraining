@@ -44,11 +44,10 @@ these are plumbing checks, not corpus-wide tokenizer efficiency evidence.
 1. The connector exposes private label metadata but the local environment has no
    authenticated access to its Parquet bytes. Freeze its exact revision with the
    user's runtime HF_TOKEN. Never put a token in repository files.
-2. The upstream main branch exposes `linguai_quality.contracts.document_id` but
-   not the full-corpus inference producer code used to write these 214M labels.
-   The implemented identity uses that pinned contract. Test representative actual
-   labels against original rows; if mismatched, obtain the producer's precise
-   algorithm rather than bypassing verification.
+2. The full student producer is now verified at upstream commit
+   `53b6abd197ba2fee7f2bda69f684c8173adafdaa`; its identity matches this reader.
+   Test representative actual private Parquet labels against pinned original rows
+   before training. Producer-code compatibility does not verify archive contents.
 3. Select representative explicit label files and measure index/corpus coverage;
    all-label indexing is intentionally blocked by default. Budget-stop audits
    are partial. Near-duplicate and benchmark contamination checks remain separate.
@@ -69,3 +68,82 @@ CPU regression suite uses local fixtures, mocked model load/eval, real torch
 optimizer updates and interrupted stochastic resume. CPU runtime here is
 PyTorch 2.14.1+cpu with transformers 4.56.1; production remains pinned separately.
 The GPU production runtime is not verified by these CPU results.
+
+## Follow-up producer inspection — 2026-10-06
+
+Historical snapshot below; superseded by the newly published producer inspection
+at the end of this document.
+
+The user confirmed `serda-dev/linguai-dataset-quality` as the classification
+project. Re-inspected current main `8ce7c69855e018fb697c7c6872347a4d354d171a`
+and all six other exposed branches. This snapshot's README explicitly places
+student training outside the implemented scope; its export writes
+`original_text`, `teacher_label_json`, `route`, and `split=train`, rather than the
+handoff's full-corpus `source_id`, `row_ordinal`, `predicted_label_json`,
+`predicted_route`, and `input_truncated` schema. The main code and those branches
+contain no matching full-corpus student inference writer.
+
+Confirmed source contracts:
+- `src/linguai_quality/contracts.py`: full UTF-8 text SHA-256; stable ID from
+  compact Unicode JSON `[source, revision, config, split, ordinal, text_sha256]`.
+- `src/linguai_quality/runs.py`: raw source is repo/config/split at pinned revision;
+  ingestion uses original text without whitespace normalization. Its separate
+  content-family whitespace hash is not document_hash.
+- `src/linguai_quality/export.py`: bounded teacher export preserves text hash and
+  source coordinates; it is not the 214M-row prediction writer.
+
+Four independent literal expected-value vectors were generated from the pinned
+upstream identity function and added under `tests/fixtures/upstream_identity_v1.json`.
+Tests cover Turkish Unicode, preserved whitespace, decomposed Unicode and ordinal
+changes. These validate CPT compatibility with the confirmed control-plane
+contract, but cannot prove the unseen full-corpus writer reused that contract.
+
+The separately located `serda-dev/linguai-teacher-model` main README describes a
+Qwen inference/API service and explicitly excludes corpus/database/routing storage.
+Its purpose does not resolve the missing student writer. No relabeling or teacher
+training was launched. The remaining identity gate is actual producer code or
+representative real prediction rows matched to pinned raw originals.
+
+Validation after this follow-up: 88 CPU regression tests passed.
+
+## Published student producer inspection — 2026-10-07 (Istanbul)
+
+Upstream main `53b6abd197ba2fee7f2bda69f684c8173adafdaa` now contains
+`train_student.py`, `classify_student_stream.py`, and the verified HF archive
+publisher. Its README still describes the earlier control-plane scope; the new
+scripts provide the previously missing implementation evidence.
+
+Confirmed full-corpus writer contracts:
+- `prepare_batch` emits the exact eight fields used by the CPT reader. Hash and
+  ID use the full original UTF-8 text, without whitespace normalization.
+- Empty/non-string source texts are skipped but retain gaps in global ordinals.
+- FineWeb file-range jobs begin at the pinned file's `start_ordinal`; their
+  output directories have shard suffixes, while row `source_id` remains
+  `fineweb2-tur`. Do not derive source ID from the directory name or part start.
+- `input_bytes` is the full original byte count even when `input_truncated=true`.
+  The latter describes head/tail token sampling at the classifier's max length,
+  not a shortened raw artifact. CPT now verifies the full byte count for every
+  row and retains the conservative exclusion of truncated predictions.
+- `predicted_route` is a policy applied to student predictions, not ground truth.
+  The routing audit script computes heldout disagreement and false acceptance,
+  but the actual audit report is not committed; quality thresholds cannot be
+  inferred from its existence.
+- Publisher paths are `data/<job-directory>/part-<start>-<end>.parquet`, with
+  per-job `metadata/.../identity.json` and `DONE.json`. Size and LFS SHA-256 are
+  verified before removing local output copies. This does not establish a
+  finished join or clean-data yield in the CPT reader.
+
+`tests/fixtures/upstream_student_writer_v1.json` records independently generated
+producer metadata from the actual pinned `prepare_batch`, encoding and identity
+functions, with their source hashes. A deterministic fake tokenizer exercises
+the truncation branch; synthetic labels do not measure student quality. Tests
+cover literal identity/bytes including a high global ordinal, a real Parquet
+roundtrip with an empty-row gap, truncation exclusion, and corrupt truncated-row
+byte counts. Actual private archive bytes and GPU training remain untested.
+
+Cost caveat: selecting a late label shard still requires scanning raw source
+prefixes with the current generic join. Benchmark preprocessing separately and
+prefer a representative pilot that fits the index budget; the pinned FineWeb
+file plan permits a future direct-file optimization without changing ordinals.
+
+Validation after the producer update: 93 CPU tests passed; no paid jobs launched.
