@@ -1,0 +1,170 @@
+project:
+  name: jamba2-3b-classified-turkish-cpt
+  seed: 42
+model:
+  base_model: ai21labs/AI21-Jamba2-3B
+  revision: 525c6c8e1d9f5bddedfbdc1dbb0ade2df84230c9
+  tokenizer: ./customtokenizer
+  dtype: bf16
+  attn_implementation: sdpa
+  use_mamba_kernels: true
+  use_cache: false
+paths:
+  storage_root: /mnt/home_extra
+  cache_dir: /mnt/home_extra/cache
+  checkpoint_dir: /mnt/home_extra/checkpoint
+  log_dir: /mnt/home_extra/log
+  manifest_dir: /mnt/home_extra/manifest
+training:
+  mode: continuous_cpt
+  seq_len: 2048
+  micro_batch_size: 2
+  gradient_accumulation_steps: 32
+  learning_rate: 2.0e-05
+  warmup_ratio: 0.02
+  scheduler: cosine
+  max_tokens: 1000000000
+  max_steps: 7630
+  time_budget_seconds: 216000
+  repeat_dataset: false
+  resume: auto
+  dataloader_num_workers: 0
+  gradient_checkpointing: true
+  mixed_precision: true
+  amp_dtype: bfloat16
+  optimizer: adamw_8bit
+  weight_decay: 0.1
+  max_grad_norm: 1.0
+  stop_file: /mnt/home_extra/STOP
+checkpointing:
+  checkpoint_every_steps: 500
+  save_total_limit: 2
+  save_final: true
+  hub_repo: serda-dev/Jamba2-3B-Turkish-CPT-1B-20261007
+logging:
+  log_every_steps: 10
+  log_json: true
+token_cache:
+  batch_size: 64
+  chunks_per_shard: 2048
+  max_tokens: 1000000000
+datasets:
+  turkish:
+    classified:
+      labels_repo: serda-dev/filtered-turkish-dataset
+      labels_revision: 388300940d3675640553e817e2b6eae1b3b6947b
+      source_plan: configs/cpt_1b_sources.json
+      audit_db: /mnt/home_extra/manifests/audit.sqlite
+      manifest_path: /mnt/home_extra/manifests/corpus.json
+      max_labels: 7000000
+      max_audit_bytes: 10737418240
+      accepted_routes:
+      - PREMIUM
+      - KEEP
+      allow_cosmos: false
+      validation_fraction: 0.01
+      split_seed: 42
+      source_mix_unit: tokens
+      source_weights:
+        fineweb2-tur: 0.25
+        mogan: 0.25
+        bella-akademik: 0.2
+        bella-ozenli: 0.2
+        bella-mc4: 0.05
+        bella-oscar: 0.05
+      labels_files:
+      - data/fineweb2-tur-files-00-14/part-000000000000-000000100000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000100000-000000200000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000200000-000000300000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000300000-000000400000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000400000-000000500000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000500000-000000600000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000600000-000000700000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000700000-000000800000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000800000-000000900000.parquet
+      - data/fineweb2-tur-files-00-14/part-000000900000-000001000000.parquet
+      - data/fineweb2-tur-files-00-14/part-000001000000-000001100000.parquet
+      - data/fineweb2-tur-files-00-14/part-000001100000-000001200000.parquet
+      - data/fineweb2-tur-files-00-14/part-000001200000-000001300000.parquet
+      - data/fineweb2-tur-files-00-14/part-000001300000-000001400000.parquet
+      - data/fineweb2-tur-files-00-14/part-000001400000-000001500000.parquet
+      - data/mogan/part-000000000000-000000100000.parquet
+      - data/mogan/part-000000100000-000000200000.parquet
+      - data/mogan/part-000000200000-000000300000.parquet
+      - data/mogan/part-000000300000-000000400000.parquet
+      - data/mogan/part-000000400000-000000500000.parquet
+      - data/mogan/part-000000500000-000000600000.parquet
+      - data/mogan/part-000000600000-000000700000.parquet
+      - data/mogan/part-000000700000-000000800000.parquet
+      - data/mogan/part-000000800000-000000900000.parquet
+      - data/mogan/part-000000900000-000001000000.parquet
+      - data/mogan/part-000001000000-000001100000.parquet
+      - data/mogan/part-000001100000-000001200000.parquet
+      - data/mogan/part-000001200000-000001300000.parquet
+      - data/mogan/part-000001300000-000001400000.parquet
+      - data/mogan/part-000001400000-000001500000.parquet
+      - data/bella-akademik/part-000000000000-000000100000.parquet
+      - data/bella-akademik/part-000000100000-000000200000.parquet
+      - data/bella-akademik/part-000000200000-000000300000.parquet
+      - data/bella-akademik/part-000000300000-000000400000.parquet
+      - data/bella-akademik/part-000000400000-000000500000.parquet
+      - data/bella-akademik/part-000000500000-000000600000.parquet
+      - data/bella-akademik/part-000000600000-000000700000.parquet
+      - data/bella-akademik/part-000000700000-000000800000.parquet
+      - data/bella-akademik/part-000000800000-000000900000.parquet
+      - data/bella-akademik/part-000000900000-000000965862.parquet
+      - data/bella-ozenli/part-000000000000-000000100000.parquet
+      - data/bella-ozenli/part-000000100000-000000200000.parquet
+      - data/bella-ozenli/part-000000200000-000000300000.parquet
+      - data/bella-ozenli/part-000000300000-000000400000.parquet
+      - data/bella-ozenli/part-000000400000-000000500000.parquet
+      - data/bella-ozenli/part-000000500000-000000600000.parquet
+      - data/bella-ozenli/part-000000600000-000000700000.parquet
+      - data/bella-ozenli/part-000000700000-000000800000.parquet
+      - data/bella-ozenli/part-000000800000-000000900000.parquet
+      - data/bella-ozenli/part-000000900000-000001000000.parquet
+      - data/bella-ozenli/part-000001000000-000001100000.parquet
+      - data/bella-ozenli/part-000001100000-000001200000.parquet
+      - data/bella-ozenli/part-000001200000-000001300000.parquet
+      - data/bella-ozenli/part-000001300000-000001400000.parquet
+      - data/bella-ozenli/part-000001400000-000001500000.parquet
+      - data/bella-mc4/part-000000000000-000000100000.parquet
+      - data/bella-mc4/part-000000100000-000000200000.parquet
+      - data/bella-mc4/part-000000200000-000000300000.parquet
+      - data/bella-oscar/part-000000000000-000000100000.parquet
+      - data/bella-oscar/part-000000100000-000000200000.parquet
+      - data/bella-oscar/part-000000200000-000000300000.parquet
+  english:
+    fineweb_edu:
+      repo: HuggingFaceFW/fineweb-edu
+      revision: 87f09149ef4734204d70ed1d046ddc9ca3f2b8f9
+      split: train
+      text_column: text
+      score_column: score
+    openwebmath:
+      repo: open-web-math/open-web-math
+      revision: fde8ef8de2300f5e778f56261843dab89f230815
+      split: train
+      text_column: text
+    stack_python:
+      repo: bigcode/starcoderdata
+      revision: 9fc30b578cedaec69e47302df72cf00feed7c8c4
+      split: train
+      data_dir: python
+      text_column: content
+phases:
+- id: 1
+  name: continuous_turkish_adaptation
+  english_sources:
+  - dataset: fineweb_edu
+    weight: 0.7
+    filter:
+      score_gte: 3.0
+  - dataset: openwebmath
+    weight: 0.2
+  - dataset: stack_python
+    weight: 0.1
+  mix:
+    unit: tokens
+    turkish_ratio: 0.8
+    english_ratio: 0.2

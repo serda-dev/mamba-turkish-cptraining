@@ -1,0 +1,91 @@
+{
+  "seed": 20261002,
+  "max_scan_per_stratum": 100000,
+  "max_document_bytes": 20000,
+  "sources": [
+    {
+      "id": "fineweb2-tur",
+      "repo": "HuggingFaceFW/fineweb-2",
+      "revision": "af9c13333eb981300149d5ca60a8e9d659b276b9",
+      "config": "tur_Latn",
+      "split": "train",
+      "text_field": "text",
+      "license": "odc-by",
+      "quotas": {
+        "normal": 7000,
+        "noisy_edge": 2000,
+        "structured": 1000
+      }
+    },
+    {
+      "id": "bella-akademik",
+      "repo": "turkish-nlp-suite/BellaTurca",
+      "revision": "05097c1469d4c96780bdd18ec64c7948d9ecf771",
+      "config": "AkademikDerlem",
+      "split": "train",
+      "text_field": "text",
+      "license": "cc-by-sa-4.0",
+      "quotas": {
+        "normal": 1750,
+        "noisy_edge": 500,
+        "structured": 250
+      }
+    },
+    {
+      "id": "bella-ozenli",
+      "repo": "turkish-nlp-suite/BellaTurca",
+      "revision": "05097c1469d4c96780bdd18ec64c7948d9ecf771",
+      "config": "OzenliDerlem",
+      "split": "train",
+      "text_field": "text",
+      "license": "cc-by-sa-4.0",
+      "quotas": {
+        "normal": 1750,
+        "noisy_edge": 500,
+        "structured": 250
+      }
+    },
+    {
+      "id": "bella-oscar",
+      "repo": "turkish-nlp-suite/BellaTurca",
+      "revision": "05097c1469d4c96780bdd18ec64c7948d9ecf771",
+      "config": "temiz-OSCAR",
+      "split": "train",
+      "text_field": "text",
+      "license": "cc-by-sa-4.0",
+      "quotas": {
+        "normal": 1750,
+        "noisy_edge": 500,
+        "structured": 250
+      }
+    },
+    {
+      "id": "bella-mc4",
+      "repo": "turkish-nlp-suite/BellaTurca",
+      "revision": "05097c1469d4c96780bdd18ec64c7948d9ecf771",
+      "config": "temiz-mC4",
+      "split": "train",
+      "text_field": "text",
+      "license": "cc-by-sa-4.0",
+      "quotas": {
+        "normal": 1750,
+        "noisy_edge": 500,
+        "structured": 250
+      }
+    },
+    {
+      "id": "mogan",
+      "repo": "moganai/mogan-turkish-web",
+      "revision": "4f1337fed9cdc6d6c0cc7bcc59fb1bafd491c0d0",
+      "config": "default",
+      "split": "train",
+      "text_field": "text",
+      "license": "odc-by",
+      "quotas": {
+        "normal": 7000,
+        "noisy_edge": 2000,
+        "structured": 1000
+      }
+    }
+  ]
+}

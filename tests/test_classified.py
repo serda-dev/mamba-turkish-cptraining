@@ -185,3 +185,30 @@ def test_truncated_input_still_requires_full_raw_byte_count(tmp_path):
     rewrite_labels(settings, labels)
     with pytest.raises(ValueError, match='input_bytes mismatch'):
         list(iter_classified_texts(config, 'all'))
+
+
+def test_source_token_balance_uses_accepted_tokens_not_raw_rows(tmp_path):
+    config, settings, _ = fixture_config(tmp_path, {
+        'long': [('reject', 'DROP')] * 20 + [('L' * 99 + str(i), 'KEEP') for i in range(30)],
+        'short': [('s' + str(i), 'KEEP') for i in range(500)]})
+    settings.update(source_mix_unit='tokens', source_weights={'long': .5, 'short': .5})
+    class Tokenizer:
+        def encode(self, text, **kwargs):
+            return list(text)
+    stream = iter_classified_texts(config, 'all', tokenizer=Tokenizer())
+    for _ in range(100):
+        next(stream)
+    stream.close()
+    counts = json.loads((tmp_path / 'audit.manifest.json').read_text())['yielded_source_tokens']
+    assert abs(counts['long'] - counts['short']) <= 103
+    assert counts['long'] > 0 and counts['short'] > 0
+
+
+def test_token_mix_exhaustion_fails_without_changing_requested_ratio(tmp_path):
+    config, settings, _ = fixture_config(tmp_path, {'one': [('a', 'KEEP')], 'two': [('b', 'DROP')]})
+    settings.update(source_mix_unit='tokens', source_weights={'one': .5, 'two': .5})
+    class Tokenizer:
+        def encode(self, text, **kwargs):
+            return [1]
+    with pytest.raises(ValueError, match='quota source exhausted: two'):
+        list(iter_classified_texts(config, 'all', tokenizer=Tokenizer()))
