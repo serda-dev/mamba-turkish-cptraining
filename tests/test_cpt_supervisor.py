@@ -61,3 +61,36 @@ def test_budget_boundary_stops_gpu_and_retains_disk_for_recovery(tmp_path,monkey
     supervisor.main()
     assert ('stop','instance') in events and ('destroy','instance') not in events
     assert json.loads(supervisor.STATE.read_text())['stage'] == 'PAUSED_RECOVERY_REQUIRED'
+
+
+def mock_cli(tmp_path,monkeypatch,response,instances):
+    from types import SimpleNamespace
+    key = tmp_path/'api-key'
+    key.write_text('test-key')
+    monkeypatch.setattr(supervisor,'KEY',key)
+    def run(command,**kwargs):
+        output = json.dumps(instances) if command[3:5] == ['show','instances'] else response
+        return SimpleNamespace(returncode=0,stdout=output)
+    monkeypatch.setattr(supervisor.subprocess,'run',run)
+    monkeypatch.setattr(supervisor.time,'sleep',lambda seconds:None)
+
+
+def test_already_attached_key_is_idempotent_success(tmp_path,monkeypatch):
+    mock_cli(tmp_path,monkeypatch,"{'success': False, 'msg': 'SSH key already associated with instance.'}",[])
+    assert supervisor.vast('attach','ssh',123,'public-key')['success']
+
+
+def test_empty_destroy_cli_response_requires_instance_disappearance(tmp_path,monkeypatch):
+    mock_cli(tmp_path,monkeypatch,'',[])
+    assert supervisor.vast('destroy','instance',123,'-y')['success']
+
+
+def test_stop_cli_response_requires_confirmed_target_state(tmp_path,monkeypatch):
+    mock_cli(tmp_path,monkeypatch,'stopping instance 123.',[{'id':123,'intended_status':'stopped'}])
+    assert supervisor.vast('stop','instance',123)['success']
+
+
+def test_zero_cli_exit_without_requested_state_is_failure(tmp_path,monkeypatch):
+    mock_cli(tmp_path,monkeypatch,'',[{'id':123,'intended_status':'running'}])
+    with pytest.raises(RuntimeError,match='requested state'):
+        supervisor.vast('destroy','instance',123,'-y')

@@ -97,3 +97,23 @@ Expected GPU training ~51 hours at the prior measured 5,484 tokens/s. At
 $1.23/h that is ~$62 before setup/evaluation/uploads; the prior $75–90 all-in
 planning envelope remains a reserve, not an amount that must be spent. CPU
 preparation time is separate and does not consume Vast credits.
+
+## User-directed early rental update
+
+The user subsequently instructed immediate GPU rental. The initial "no rent
+before cache completion" timing was superseded by that explicit instruction;
+**training still requires fully validated caches**.
+
+- Rented instance: **54662760**, team 733063, on October 7 at 15:14 UTC.
+- One A100 SXM4 80 GB, 180 GB disk, **$1.23/h** including disk.
+- Code/token setup and pinned model prefetch run while VPS packing continues.
+- The supervisor charges startup and cache wait against the same spending cap.
+  If CPU preparation fails, it deletes this not-yet-training instance. It stops
+  GPU if cache wait exceeds six hours. Invalid completed cache also cancels
+  rental before any training begins.
+- Vast CLI executable path is explicit for systemd. CLI mutation outputs vary:
+  SSH attach returns Python dict text, stop returns text, and destroy may return
+  empty stdout even with `--raw`. The controller verifies mutation results
+  against the instance list rather than treating exit code alone as success.
+- An already-associated SSH key is accepted idempotently. Four extra tests cover
+  these real CLI response cases. Team API key remains only on the VPS.

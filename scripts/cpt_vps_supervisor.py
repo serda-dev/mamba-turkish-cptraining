@@ -3,6 +3,7 @@
 Run as a persistent user systemd service. The state file prevents duplicate rents.
 Only this run's labelled instance can be stopped/destroyed. No API key leaves VPS.
 """
+import ast
 import hashlib
 import json
 import os
@@ -25,6 +26,8 @@ SSH_KEY = '/home/serda/.ssh/id_ed25519'
 def save(state, stage=None, **fields):
     if stage:
         state['stage'] = stage
+        if 'error' not in fields:
+            state.pop('error',None)
     state.update(fields, updated_at=time.time())
     temp = STATE.with_suffix('.tmp')
     temp.write_text(json.dumps(state, indent=2))
@@ -34,11 +37,32 @@ def save(state, stage=None, **fields):
 
 def vast(*args):
     # Capture stderr: never echo the CLI command or its private key.
-    process = subprocess.run(['vastai','--api-key',KEY.read_text().strip(),*map(str,args),'--raw'],
+    process = subprocess.run(['/home/serda/.local/bin/vastai','--api-key',KEY.read_text().strip(),*map(str,args),'--raw'],
                               capture_output=True, text=True, timeout=45)
     if process.returncode:
         raise RuntimeError('Vast CLI failed: ' + ' '.join(map(str,args[:2])))
-    return json.loads(process.stdout)
+    try:
+        result = json.loads(process.stdout)
+    except json.JSONDecodeError:
+        if args[:2] == ('attach','ssh'):
+            result = ast.literal_eval(process.stdout.strip())
+        elif args[:2] in {('destroy','instance'),('stop','instance')}:
+            wanted = int(args[2])
+            for _ in range(4):
+                item = next((i for i in vast('show','instances') if i['id'] == wanted),None)
+                if args[0] == 'destroy' and item is None:
+                    return {'success':True}
+                if args[0] == 'stop' and item is not None and item.get('intended_status') == 'stopped':
+                    return {'success':True}
+                time.sleep(2)
+            raise RuntimeError('Vast mutation did not reach its requested state')
+        else:
+            raise RuntimeError('Vast command returned an unexpected response')
+    if isinstance(result,dict) and result.get('success') is False:
+        if args[:2] == ('attach','ssh') and result.get('msg') == 'SSH key already associated with instance.':
+            return {'success':True, 'already_associated':True}
+        raise RuntimeError('Vast API rejected command')
+    return result
 
 
 def connection(state):
@@ -153,7 +177,7 @@ def main():
                     save(state,'PREPARATION_FAILED',error='VPS free disk below 15 GiB')
                     return
                 prep = (ROOT/'preparation.status').read_text().strip() if (ROOT/'preparation.status').exists() else ''
-                if prep != 'CACHE_READY':
+                if prep != 'CACHE_READY' and not state.get('rent_before_cache_authorized'):
                     active = subprocess.run(['systemctl','--user','is-active','linguai-cpt-prepare'],capture_output=True,text=True)
                     if active.stdout.strip() not in {'active','activating'}:
                         save(state,'PREPARATION_FAILED',error='Preparation service stopped before CACHE_READY')
@@ -171,7 +195,7 @@ def main():
                              prepared_train_tokens=progress.get('total_tokens',0))
                     time.sleep(60)
                     continue
-                if not state.get('cache_validation'):
+                if prep == 'CACHE_READY' and not state.get('cache_validation'):
                     save(state,'CHECKING_FROZEN_CACHE',cache_validation=validate_cache())
                 existing = [i for i in vast('show','instances') if i.get('label') == LABEL]
                 if existing:
@@ -229,6 +253,40 @@ def main():
                 continue
             state['ssh_host'],state['ssh_port'] = instance['ssh_host'],instance['ssh_port']
             if not state.get('remote_started'):
+                if not state.get('prewarm_started'):
+                    ssh(state,'mkdir -p /mnt/home_extra /workspace/mamba-cpt-tr')
+                    make_archive()
+                    copy_to(state,ROOT/'code.tar.gz','/mnt/home_extra/code.tar.gz')
+                    ssh(state,'tar -xzf /mnt/home_extra/code.tar.gz -C /workspace/mamba-cpt-tr')
+                    ssh(state,'umask 077; cat > /mnt/home_extra/hf_token',
+                        data=Path('/home/serda/.cache/huggingface/token').read_bytes())
+                    ssh(state,'cd /workspace/mamba-cpt-tr; if ! pgrep -f "^python -u scripts/cpt_prefetch.py$" >/dev/null; then nohup env HF_HOME=/mnt/home_extra/hf-cache HUGGINGFACE_HUB_CACHE=/mnt/home_extra/hf-cache/hub TRANSFORMERS_CACHE=/mnt/home_extra/hf-cache/transformers python -u scripts/cpt_prefetch.py > /mnt/home_extra/prefetch.log 2>&1 < /dev/null & fi')
+                    save(state,'GPU_PREFETCH_WAITING_FOR_CACHE',prewarm_started=True)
+                prep = (ROOT/'preparation.status').read_text().strip()
+                if prep != 'CACHE_READY':
+                    active = subprocess.run(['systemctl','--user','is-active','linguai-cpt-prepare'],capture_output=True,text=True)
+                    if active.stdout.strip() not in {'active','activating'} or shutil.disk_usage(ROOT).free < 15*1024**3:
+                        vast('destroy','instance',state['instance_id'],'-y')
+                        save(state,'PREPARATION_FAILED',error='Cache preparation failed; no training checkpoint exists; GPU deleted')
+                        return
+                    if time.time()-state['started_at'] > 6*3600:
+                        vast('stop','instance',state['instance_id'])
+                        save(state,'PAUSED_RECOVERY_REQUIRED',error='Cache wait exceeded six hours; GPU stopped')
+                        return
+                    cache = ROOT/'cache/token_cache/phase_1/manifest.json'
+                    progress = json.loads(cache.read_text()) if cache.exists() else {}
+                    save(state,'GPU_PREFETCH_WAITING_FOR_CACHE',prepared_train_tokens=progress.get('total_tokens',0),
+                         preparation=prep,credit=user['credit'],spent_estimate=spent)
+                    time.sleep(60)
+                    continue
+                if not state.get('cache_validation'):
+                    try:
+                        validation = validate_cache()
+                    except ValueError as exc:
+                        vast('destroy','instance',state['instance_id'],'-y')
+                        save(state,'PREPARATION_FAILED',error=str(exc))
+                        return
+                    save(state,'CHECKING_FROZEN_CACHE',cache_validation=validation)
                 ssh(state,'mkdir -p /mnt/home_extra /workspace/mamba-cpt-tr')
                 make_archive()
                 save(state,code_archive_sha256=hashlib.sha256((ROOT/'code.tar.gz').read_bytes()).hexdigest())
