@@ -78,5 +78,11 @@
         "valid_lengths_path": "shard_000000.valid_lengths.bin"
       }
     ]
+  },
+  "production_image": {
+    "tag": "serdadev/jamba2-cpt:pilot-786a53b-r3",
+    "digest": "sha256:5762cb5fffab046aca0c6c3a7a32fbc1733a8f51352b54244f738f0b6f4eb8e4",
+    "anonymous_pull_manifest_verified": true,
+    "fresh_10k_process_exit_code": 0
   }
 }
