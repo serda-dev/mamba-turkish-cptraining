@@ -256,7 +256,7 @@ def main():
                         time.sleep(600)
                         continue
                     user = vast('show','user')
-                    if user.get('id') != 733063 or not user.get('is_team') or user.get('credit',0) < 90:
+                    if user.get('id') != 733063 or not user.get('is_team') or user.get('credit',0) < 85:
                         save(state,'WAITING_FOR_TEAM_CREDIT',credit=user.get('credit'))
                         time.sleep(600)
                         continue
