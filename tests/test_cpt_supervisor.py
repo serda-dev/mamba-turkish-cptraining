@@ -20,6 +20,7 @@ def setup_run(tmp_path, monkeypatch, credit=95):
         return {'success':True}
     monkeypatch.setattr(supervisor,'vast',vast)
     monkeypatch.setattr(supervisor,'ssh',lambda *args,**kwargs: json.dumps({'state':'DONE','alive':False,'log_age':0}))
+    monkeypatch.setattr(supervisor,'archive_logs',lambda state:{'verified':True})
     def interrupt_sleep(*args):
         raise KeyboardInterrupt
     monkeypatch.setattr(supervisor.time,'sleep',interrupt_sleep)
@@ -44,6 +45,15 @@ def test_failed_export_never_destroys_instance(tmp_path,monkeypatch):
     monkeypatch.setattr(supervisor,'recover_and_verify',fail)
     with pytest.raises(KeyboardInterrupt):
         supervisor.main()
+    assert ('destroy','instance') not in events
+
+
+def test_failed_log_archive_retains_instance_after_checkpoint_export(tmp_path,monkeypatch):
+    events=setup_run(tmp_path,monkeypatch)
+    monkeypatch.setattr(supervisor,'recover_and_verify',lambda state:
+        {'checkpoint_metadata':{'phase_completed':True,'tokens_seen':1000000000}})
+    monkeypatch.setattr(supervisor,'archive_logs',lambda state:{'verified':False})
+    with pytest.raises(KeyboardInterrupt):supervisor.main()
     assert ('destroy','instance') not in events
 
 

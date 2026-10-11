@@ -210,6 +210,11 @@ else:
     return receipt
 
 
+def archive_logs(state):
+    from scripts.cpt_log_backup import backup_logs
+    return backup_logs(state,ROOT)
+
+
 def main():
     ROOT.mkdir(exist_ok=True)
     state = json.loads(STATE.read_text()) if STATE.exists() else {'stage':'WAITING_FOR_CACHE'}
@@ -386,9 +391,12 @@ def main():
                         (ROOT/('remote_'+path)).write_text(content)
                     except subprocess.CalledProcessError:
                         pass
+                log_receipt=archive_logs(state)
+                if not log_receipt.get('verified'):
+                    raise ValueError('Log archive is not independently verified; retain instance')
                 vast('destroy','instance',state['instance_id'],'-y')
                 terminal = 'COMPLETE' if remote.get('state') == 'DONE' else ('FAILED_NO_CHECKPOINT' if receipt.get('no_checkpoint') else 'STOPPED_EXPORTED')
-                save(state,terminal,hub_receipt=receipt)
+                save(state,terminal,hub_receipt=receipt,log_archive_receipt=log_receipt)
                 return
             time.sleep(600)
         except Exception as exc:
