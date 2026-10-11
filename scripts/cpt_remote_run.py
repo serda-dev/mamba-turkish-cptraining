@@ -54,11 +54,13 @@ def main():
         status('GPU_PREFLIGHT')
         print('GPU_PREFLIGHT',json.dumps(check_gpu_runtime()),flush=True)
         status('BASELINE_EVALUATION')
-        baseline = evaluate(config['model']['base_model'], 'baseline', config['model']['revision'])
+        baseline_path = ROOT/'eval_baseline.json'
+        baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else evaluate(config['model']['base_model'], 'baseline', config['model']['revision'])
         config['training']['stop_after_steps'] = 763
         (ROOT/'first100m.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
         status('TRAINING_FIRST_100M')
-        command(['-m','src.cli','train','--config',str(ROOT/'first100m.yaml'),'--resume','none'])
+        continuation = 'auto' if (ROOT/'checkpoint/latest.json').exists() else 'none'
+        command(['-m','src.cli','train','--config',str(ROOT/'first100m.yaml'),'--resume',continuation])
         checkpoint = latest()
         if checkpoint['stop_reason'] != 'operator_limit':
             status('STOPPED', checkpoint=checkpoint)

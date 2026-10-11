@@ -121,6 +121,38 @@ def test_resume_rejects_changed_data_and_legacy_cursor(tmp_path):
         trainer(tmp_path / "missing", resume=str(tmp_path))
 
 
+def test_batch_regrouping_preserves_shuffled_samples_optimizer_and_scheduler(tmp_path):
+    torch.manual_seed(321)
+    cfg = config(max_steps=3,micro_batch_size=1,gradient_accumulation_steps=4)
+    original = trainer(tmp_path/'whole',count=12,cfg=cfg,shuffle=True)
+    original.train()
+    checkpoint = tmp_path/'whole'/'checkpoints'/'step_000001'
+    model=TinyModel()
+    model.load_state_dict(torch.load(checkpoint/'model.pt',weights_only=True))
+    loader=DataLoader(Rows(12),batch_size=2,shuffle=True,num_workers=0)
+    cfg=config(max_steps=3,micro_batch_size=2,gradient_accumulation_steps=2,allow_batch_regrouping=True)
+    resumed=Trainer(model,loader,cfg,str(tmp_path/'regroup'),str(checkpoint))
+    assert resumed.batches_consumed==2 and resumed.global_step==1
+    assert resumed.scheduler.last_epoch==1
+    result=resumed.train()
+    torch.testing.assert_close(resumed.model.weight,original.model.weight,rtol=1e-6,atol=1e-7)
+    assert result['total_tokens']==original.tokens_seen
+    assert result['loss_tokens']==original.loss_tokens_seen
+    assert result['source_token_counts']==original.source_token_counts
+
+
+@pytest.mark.parametrize('changes',[{'gradient_accumulation_steps':4},{'learning_rate':.02}])
+def test_regrouping_rejects_changed_effective_batch_or_learning_rate(tmp_path,changes):
+    original=trainer(tmp_path/'whole',count=12,cfg=config(max_steps=3,gradient_accumulation_steps=4))
+    original.train()
+    checkpoint=tmp_path/'whole'/'checkpoints'/'step_000001'
+    loader=DataLoader(Rows(12),batch_size=2,num_workers=0)
+    cfg=config(max_steps=3,micro_batch_size=2,gradient_accumulation_steps=2,allow_batch_regrouping=True)
+    cfg['training'].update(changes)
+    with pytest.raises(ValueError,match='configuration changed'):
+        Trainer(TinyModel(),loader,cfg,str(tmp_path/'bad'),str(checkpoint))
+
+
 def test_failed_checkpoint_save_leaves_latest_pointer_intact(tmp_path):
     instance = trainer(tmp_path, cfg=config(max_steps=1))
     instance.train()

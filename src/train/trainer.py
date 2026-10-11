@@ -124,6 +124,9 @@ class Trainer:
         if self.gradient_checkpointing and hasattr(self.model, "gradient_checkpointing_enable"):
             self.model.gradient_checkpointing_enable()
             logger.info("Gradient checkpointing: enabled")
+        elif hasattr(self.model, "gradient_checkpointing_disable"):
+            self.model.gradient_checkpointing_disable()
+            logger.info("Gradient checkpointing: disabled")
 
         if hasattr(getattr(self.model, "config", None), "use_cache"):
             self.model.config.use_cache = False
@@ -178,10 +181,25 @@ class Trainer:
 
         if not self.data_signature["cache_fingerprint"]:
             raise ValueError("Exact resume requires training.cache_fingerprint from the immutable cache manifest")
-        if state.get("state_version") != 2 or state.get("data_signature") != self.data_signature or state.get("training_signature") != self.training_signature:
+        old_data = state.get("data_signature", {})
+        old_training = state.get("training_signature", {})
+        regroup = False
+        if self.config.get("training", {}).get("allow_batch_regrouping", False):
+            same_data = {k:v for k,v in old_data.items() if k != 'batch_size'} == {k:v for k,v in self.data_signature.items() if k != 'batch_size'}
+            same_training = {k:v for k,v in old_training.items() if k != 'gradient_accumulation_steps'} == {k:v for k,v in self.training_signature.items() if k != 'gradient_accumulation_steps'}
+            old_batch, new_batch = old_data.get('batch_size',0), self.train_loader.batch_size
+            old_accum = old_training.get('gradient_accumulation_steps',0)
+            consumed_samples = state.get('batches_consumed',0) * old_batch
+            regroup = (same_data and same_training and old_batch > 0 and new_batch > 0
+                       and old_batch * old_accum == new_batch * self.gradient_accumulation_steps
+                       and consumed_samples % new_batch == 0)
+        if state.get("state_version") != 2 or (not regroup and (old_data != self.data_signature or old_training != self.training_signature)):
             raise ValueError("Checkpoint lacks an exact data cursor or dataset configuration changed")
         self.epoch = state["epoch"]
-        self.batches_consumed = state["batches_consumed"]
+        self.batches_consumed = consumed_samples // new_batch if regroup else state["batches_consumed"]
+        if regroup and old_data != self.data_signature:
+            logger.info('Batch regrouping: %s x %s -> %s x %s; preserved sample cursor %s',
+                        old_batch,old_accum,new_batch,self.gradient_accumulation_steps,consumed_samples)
         self.repeated_tokens = state["repeated_tokens"]
         self.loss_tokens_seen = state["loss_tokens_seen"]
         self._epoch_rng = state["epoch_rng"]
