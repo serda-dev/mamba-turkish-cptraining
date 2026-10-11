@@ -14,10 +14,10 @@ import tarfile
 import time
 from pathlib import Path
 
-ROOT = Path('/home/serda/cpt-run-20261007')
+ROOT = Path(os.environ.get('LINGUAI_CPT_RUN_ROOT','/home/serda/cpt-run-20261007'))
 PROJECT = Path('/home/serda/cpt-production')
 STATE = ROOT/'supervisor.json'
-LABEL = 'linguai-cpt-1b-20261007'
+LABEL = 'linguai-cpt-1b-' + ROOT.name.removeprefix('cpt-run-')
 IMAGE = 'serdadev/jamba2-cpt@sha256:5762cb5fffab046aca0c6c3a7a32fbc1733a8f51352b54244f738f0b6f4eb8e4'
 KEY = Path('/home/serda/.config/vastai/linguai_team_api_key')
 SSH_KEY = '/home/serda/.ssh/id_ed25519'
