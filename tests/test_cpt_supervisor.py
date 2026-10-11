@@ -115,3 +115,9 @@ def test_direct_ssh_selected_only_after_successful_probe(monkeypatch):
     def fail(*args,**kwargs):raise supervisor.subprocess.TimeoutExpired('ssh',20)
     monkeypatch.setattr(supervisor,'ssh',fail)
     assert supervisor.select_connection({},instance)==('proxy',22)
+
+
+def test_verified_direct_endpoint_survives_missing_port_metadata():
+    state={'preferred_ssh_host':'1.2.3.4','preferred_ssh_port':41234}
+    instance={'ssh_host':'proxy','ssh_port':22,'ports':None}
+    assert supervisor.select_connection(state,instance)==('1.2.3.4',41234)

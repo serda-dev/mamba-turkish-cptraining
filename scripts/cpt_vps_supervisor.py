@@ -91,7 +91,11 @@ def copy_to(state, path, target, recursive=False):
 
 
 def select_connection(state, instance):
-    mapping = instance.get('ports',{}).get('22/tcp',[])
+    # Preserve an explicitly verified direct endpoint for this instance;
+    # transient API port metadata must not move bulk transfers to the proxy.
+    if state.get('preferred_ssh_host') and state.get('preferred_ssh_port'):
+        return state['preferred_ssh_host'],int(state['preferred_ssh_port'])
+    mapping = (instance.get('ports') or {}).get('22/tcp',[])
     direct = instance.get('public_ipaddr')
     if direct and mapping:
         candidate = dict(state,ssh_host=direct,ssh_port=int(mapping[0]['HostPort']))
