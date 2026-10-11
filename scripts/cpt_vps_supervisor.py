@@ -18,7 +18,7 @@ ROOT = Path(os.environ.get('LINGUAI_CPT_RUN_ROOT','/home/serda/cpt-run-20261007'
 PROJECT = Path('/home/serda/cpt-production')
 STATE = ROOT/'supervisor.json'
 LABEL = 'linguai-cpt-1b-' + ROOT.name.removeprefix('cpt-run-')
-IMAGE = 'serdadev/jamba2-cpt@sha256:5762cb5fffab046aca0c6c3a7a32fbc1733a8f51352b54244f738f0b6f4eb8e4'
+IMAGE = 'serdadev/jamba2-cpt@sha256:3222508c69957f28d1ce79200686c0bf665416cb74d5ddb162bf7f99377f5b4b'
 KEY = Path('/home/serda/.config/vastai/linguai_team_api_key')
 SSH_KEY = '/home/serda/.ssh/id_ed25519'
 
@@ -212,7 +212,7 @@ def main():
     save(state)
     while True:
         try:
-            if state['stage'] in {'COMPLETE','STOPPED_EXPORTED','PREPARATION_FAILED','PAUSED_RECOVERY_REQUIRED','RENT_AMBIGUOUS'}:
+            if state['stage'] in {'COMPLETE','STOPPED_EXPORTED','FAILED_NO_CHECKPOINT','PREPARATION_FAILED','PAUSED_RECOVERY_REQUIRED','RENT_AMBIGUOUS'}:
                 return
             if not state.get('instance_id'):
                 if shutil.disk_usage(ROOT).free < 15*1024**3:
@@ -296,6 +296,10 @@ def main():
                 continue
             state['ssh_host'],state['ssh_port'] = select_connection(state,instance)
             if not state.get('remote_started'):
+                if not state.get('gpu_runtime_verified') and time.time()-state['started_at'] > 20*60:
+                    vast('stop','instance',state['instance_id'])
+                    save(state,'PAUSED_RECOVERY_REQUIRED',error='GPU runtime verification exceeded 20 minutes; GPU stopped')
+                    return
                 if not state.get('prewarm_started'):
                     ssh(state,'mkdir -p /mnt/home_extra /workspace/mamba-cpt-tr')
                     make_archive()
@@ -303,7 +307,10 @@ def main():
                     ssh(state,'tar -xzf /mnt/home_extra/code.tar.gz -C /workspace/mamba-cpt-tr')
                     ssh(state,'umask 077; cat > /mnt/home_extra/hf_token',
                         data=Path('/home/serda/.cache/huggingface/token').read_bytes())
-                    ssh(state,'cd /workspace/mamba-cpt-tr; if ! pgrep -f "^python -u scripts/cpt_prefetch.py$" >/dev/null; then nohup env HF_HOME=/mnt/home_extra/hf-cache HUGGINGFACE_HUB_CACHE=/mnt/home_extra/hf-cache/hub TRANSFORMERS_CACHE=/mnt/home_extra/hf-cache/transformers python -u scripts/cpt_prefetch.py > /mnt/home_extra/prefetch.log 2>&1 < /dev/null & fi')
+                    save(state,'GPU_RUNTIME_CHECK')
+                    ssh(state,'cd /workspace/mamba-cpt-tr && python -u -m scripts.cpt_gpu_preflight',timeout=180)
+                    save(state,gpu_runtime_verified=True)
+                    ssh(state,'cd /workspace/mamba-cpt-tr; if ! pgrep -f "^python -u scripts/cpt_prefetch.py$" >/dev/null; then nohup env HF_HOME=/mnt/home_extra/hf-cache HUGGINGFACE_HUB_CACHE=/mnt/home_extra/hf-cache/hub TRANSFORMERS_CACHE=/mnt/home_extra/hf-cache/hub python -u scripts/cpt_prefetch.py > /mnt/home_extra/prefetch.log 2>&1 < /dev/null & fi')
                     save(state,'GPU_PREFETCH_WAITING_FOR_CACHE',prewarm_started=True)
                 prep = (ROOT/'preparation.status').read_text().strip()
                 if prep != 'CACHE_READY':
@@ -349,7 +356,7 @@ def main():
                     data=Path('/home/serda/.cache/huggingface/token').read_bytes())
                 save(state,'LAUNCHING_REMOTE',remote_launch_requested=True)
                 # A restart during launch checks for a live process before creating another.
-                launch = 'cd /workspace/mamba-cpt-tr; if ! pgrep -f "^python -u -m scripts.cpt_remote_run$" >/dev/null; then nohup env HF_HOME=/mnt/home_extra/hf-cache HUGGINGFACE_HUB_CACHE=/mnt/home_extra/hf-cache/hub TRANSFORMERS_CACHE=/mnt/home_extra/hf-cache/transformers python -u -m scripts.cpt_remote_run > /mnt/home_extra/training.log 2>&1 < /dev/null & echo $! > /mnt/home_extra/job.pid; fi'
+                launch = 'cd /workspace/mamba-cpt-tr; if ! pgrep -f "^python -u -m scripts.cpt_remote_run$" >/dev/null; then nohup env HF_HOME=/mnt/home_extra/hf-cache HUGGINGFACE_HUB_CACHE=/mnt/home_extra/hf-cache/hub TRANSFORMERS_CACHE=/mnt/home_extra/hf-cache/hub python -u -m scripts.cpt_remote_run > /mnt/home_extra/training.log 2>&1 < /dev/null & echo $! > /mnt/home_extra/job.pid; fi'
                 ssh(state,launch)
                 save(state,'RUNNING',remote_started=True)
             if spent >= 86 or user['credit'] <= 11:
@@ -376,7 +383,8 @@ def main():
                     except subprocess.CalledProcessError:
                         pass
                 vast('destroy','instance',state['instance_id'],'-y')
-                save(state,'COMPLETE' if remote.get('state') == 'DONE' else 'STOPPED_EXPORTED',hub_receipt=receipt)
+                terminal = 'COMPLETE' if remote.get('state') == 'DONE' else ('FAILED_NO_CHECKPOINT' if receipt.get('no_checkpoint') else 'STOPPED_EXPORTED')
+                save(state,terminal,hub_receipt=receipt)
                 return
             time.sleep(600)
         except Exception as exc:

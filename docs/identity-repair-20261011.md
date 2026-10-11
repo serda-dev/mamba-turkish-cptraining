@@ -62,3 +62,26 @@ start. An unsuccessful transfer lasting over 45 minutes stops the GPU and
 retains the instance disk for recovery rather than retrying indefinitely.
 The October 11 incident was recovered on the same instance; no duplicate GPU
 rental was requested.
+
+## Missing compiler and restart
+
+At 10:10 UTC the baseline GPU evaluation started. Its NLL forward passes used
+the GPU, but generation later failed because Triton could not find a C
+compiler. The r3 runtime image did not install GCC. No CPT optimizer update or
+checkpoint was produced. The supervisor collected the error log and deleted
+instance 55328346 at 10:20 UTC. Team credit was $88.20 at the next check.
+
+The derivative r4 image preserves all tested Python/CUDA package versions and
+adds GCC, G++, libc6 development headers and rsync. Its immutable image digest
+is `sha256:3222508c69957f28d1ce79200686c0bf665416cb74d5ddb162bf7f99377f5b4b`.
+The image build compiles and executes a C program. The normal Dockerfile also
+includes these packages for future rebuilds.
+
+GPU setup and the remote runner now verify the actual Triton Mamba cached
+state-update kernel against two known numerical outputs before downloading
+or evaluating the model. An unsuccessful runtime check cannot keep the GPU
+running beyond the setup deadline. Hub and Transformers now share one model
+cache, avoiding the second 6GB base model download. Terminal state
+`FAILED_NO_CHECKPOINT` distinguishes failures from successfully exported
+training checkpoints. The failed supervisor state is archived before the
+authorized restart; the frozen 1B/2M token caches are reused after verification.

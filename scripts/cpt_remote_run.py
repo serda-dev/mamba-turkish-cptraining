@@ -50,6 +50,9 @@ def main():
         if (ROOT/'STOP').exists():
             status('STOPPED_BEFORE_TRAINING')
             return
+        from scripts.cpt_gpu_preflight import check_gpu_runtime
+        status('GPU_PREFLIGHT')
+        print('GPU_PREFLIGHT',json.dumps(check_gpu_runtime()),flush=True)
         status('BASELINE_EVALUATION')
         baseline = evaluate(config['model']['base_model'], 'baseline', config['model']['revision'])
         config['training']['stop_after_steps'] = 763
