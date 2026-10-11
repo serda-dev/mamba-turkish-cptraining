@@ -76,10 +76,53 @@ def ssh(state, command, data=None, timeout=60):
 
 
 def copy_to(state, path, target, recursive=False):
+    if recursive:
+        # Resume interrupted transfers and skip files whose content is already
+        # present. SCP started the entire cache again after every timeout.
+        transport = shlex.join(['ssh',*connection(state)])
+        subprocess.run(['rsync','-r','--checksum','--partial','--timeout=120',
+                        '-e',transport,str(path),f'root@{state["ssh_host"]}:{target}'],
+                       capture_output=True,check=True,timeout=1800)
+        return
     options = connection(state)
     options[2] = '-P'
     subprocess.run(['scp',*(['-r'] if recursive else []),*options,str(path),
                     f'root@{state["ssh_host"]}:{target}'], capture_output=True, check=True, timeout=1800)
+
+
+def select_connection(state, instance):
+    mapping = instance.get('ports',{}).get('22/tcp',[])
+    direct = instance.get('public_ipaddr')
+    if direct and mapping:
+        candidate = dict(state,ssh_host=direct,ssh_port=int(mapping[0]['HostPort']))
+        try:
+            ssh(candidate,'true',timeout=20)
+            return candidate['ssh_host'],candidate['ssh_port']
+        except (subprocess.SubprocessError,OSError):
+            pass
+    return instance['ssh_host'],instance['ssh_port']
+
+
+def verify_remote_cache(state):
+    # Validate the same frozen manifests and every shard after transfer,
+    # before any evaluation/training is launched.
+    code = '''import hashlib,json
+from pathlib import Path
+root=Path('/mnt/home_extra/cache/token_cache')
+for split,tokens in [('phase_1',1000000000),('phase_1_validation',2000000)]:
+ folder=root/split
+ manifest=json.loads((folder/'manifest.json').read_text())
+ assert manifest['complete'] and manifest['total_tokens']==tokens
+ for shard in manifest['shards']:
+  for field,expected in shard['sha256'].items():
+   digest=hashlib.sha256()
+   with (folder/shard[field]).open('rb') as handle:
+    for block in iter(lambda:handle.read(8*1024**2),b''):digest.update(block)
+   assert digest.hexdigest()==expected, (split,shard[field])
+print('REMOTE_CACHE_VERIFIED')
+'''
+    if ssh(state,'python -c '+shlex.quote(code),timeout=300).strip() != 'REMOTE_CACHE_VERIFIED':
+        raise ValueError('Remote cache verification failed')
 
 
 def validate_cache():
@@ -251,7 +294,7 @@ def main():
                     return
                 time.sleep(60)
                 continue
-            state['ssh_host'],state['ssh_port'] = instance['ssh_host'],instance['ssh_port']
+            state['ssh_host'],state['ssh_port'] = select_connection(state,instance)
             if not state.get('remote_started'):
                 if not state.get('prewarm_started'):
                     ssh(state,'mkdir -p /mnt/home_extra /workspace/mamba-cpt-tr')
@@ -292,7 +335,14 @@ def main():
                 save(state,code_archive_sha256=hashlib.sha256((ROOT/'code.tar.gz').read_bytes()).hexdigest())
                 copy_to(state,ROOT/'code.tar.gz','/mnt/home_extra/code.tar.gz')
                 ssh(state,'tar -xzf /mnt/home_extra/code.tar.gz -C /workspace/mamba-cpt-tr')
+                if not state.get('transfer_started_at'):
+                    save(state,'TRANSFERRING_CACHE',transfer_started_at=time.time())
+                if time.time()-state['transfer_started_at'] > 45*60:
+                    vast('stop','instance',state['instance_id'])
+                    save(state,'PAUSED_RECOVERY_REQUIRED',error='Cache transfer exceeded 45 minutes; GPU stopped')
+                    return
                 copy_to(state,ROOT/'cache','/mnt/home_extra/',recursive=True)
+                verify_remote_cache(state)
                 copy_to(state,ROOT/'manifest','/mnt/home_extra/',recursive=True)
                 copy_to(state,ROOT/'run.yaml','/mnt/home_extra/run.yaml')
                 ssh(state,'umask 077; cat > /mnt/home_extra/hf_token',

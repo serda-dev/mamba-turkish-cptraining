@@ -94,3 +94,24 @@ def test_zero_cli_exit_without_requested_state_is_failure(tmp_path,monkeypatch):
     mock_cli(tmp_path,monkeypatch,'',[{'id':123,'intended_status':'running'}])
     with pytest.raises(RuntimeError,match='requested state'):
         supervisor.vast('destroy','instance',123,'-y')
+
+
+def test_cache_transfer_resumes_and_checks_existing_content(tmp_path,monkeypatch):
+    calls=[]
+    monkeypatch.setattr(supervisor.subprocess,'run',lambda command,**kwargs:calls.append(command))
+    supervisor.copy_to({'ssh_host':'direct-host','ssh_port':41234},tmp_path/'cache','/mnt/home_extra/',recursive=True)
+    command=calls[0]
+    assert command[0]=='rsync'
+    assert '--checksum' in command and '--partial' in command
+    assert '41234' in command[command.index('-e')+1]
+    assert command[-1]=='root@direct-host:/mnt/home_extra/'
+
+
+def test_direct_ssh_selected_only_after_successful_probe(monkeypatch):
+    instance={'public_ipaddr':'1.2.3.4','ports':{'22/tcp':[{'HostPort':'41234'}]},
+              'ssh_host':'proxy','ssh_port':22}
+    monkeypatch.setattr(supervisor,'ssh',lambda *args,**kwargs:'')
+    assert supervisor.select_connection({},instance)==('1.2.3.4',41234)
+    def fail(*args,**kwargs):raise supervisor.subprocess.TimeoutExpired('ssh',20)
+    monkeypatch.setattr(supervisor,'ssh',fail)
+    assert supervisor.select_connection({},instance)==('proxy',22)

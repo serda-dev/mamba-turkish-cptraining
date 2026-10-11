@@ -45,3 +45,20 @@ the existing A100 SXM4 80GB, 180GB disk, <=$1.25/hour and >=72-hour availability
 limits. Budget stop, verified checkpoint export, and automatic deletion remain
 enabled. The October 11 repair covers the selected CPT label pool, not all
 214 million original annotations.
+
+## Transfer incident and recovery
+
+The complete frozen caches were ready at 03:18 UTC. Instance 55328346 was
+rented successfully, but recursive SCP through the Vast SSH proxy repeatedly
+hit its 30-minute timeout and restarted the cache copy. At 10:03 UTC the GPU
+had no compute process and only 958 MiB of the 4.7 GiB cache had arrived.
+The team balance was $88.62, down from $96.89 including the idle rental.
+
+The supervisor now probes the host's published direct SSH port, prefers that
+connection when accessible, and transfers directories with checksummed,
+resumable rsync. Proxy SSH remains a connection fallback. Every remote cache
+shard is authenticated against its manifest before evaluation/training can
+start. An unsuccessful transfer lasting over 45 minutes stops the GPU and
+retains the instance disk for recovery rather than retrying indefinitely.
+The October 11 incident was recovered on the same instance; no duplicate GPU
+rental was requested.
