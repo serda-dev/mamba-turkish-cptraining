@@ -36,6 +36,10 @@ def save(state, stage=None, **fields):
 
 
 def vast(*args):
+    # Scheduled cleanup is already authorized and runs without an input terminal.
+    # Recent CLI versions otherwise silently abort at an interactive prompt.
+    if args[:2] == ('destroy','instance') and '--yes' not in args:
+        args=(*args,'--yes')
     # Capture stderr: never echo the CLI command or its private key.
     process = subprocess.run(['/home/serda/.local/bin/vastai','--api-key',KEY.read_text().strip(),*map(str,args),'--raw'],
                               capture_output=True, text=True, timeout=45)
