@@ -131,3 +131,8 @@ def test_verified_direct_endpoint_survives_missing_port_metadata():
     state={'preferred_ssh_host':'1.2.3.4','preferred_ssh_port':41234}
     instance={'ssh_host':'proxy','ssh_port':22,'ports':None}
     assert supervisor.select_connection(state,instance)==('1.2.3.4',41234)
+
+
+def test_start_cli_response_requires_confirmed_target_state(tmp_path,monkeypatch):
+    mock_cli(tmp_path,monkeypatch,'starting instance 123.',[{'id':123,'intended_status':'running'}])
+    assert supervisor.vast('start','instance',123)['success']

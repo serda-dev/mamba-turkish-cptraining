@@ -50,13 +50,13 @@ def vast(*args):
     except json.JSONDecodeError:
         if args[:2] == ('attach','ssh'):
             result = ast.literal_eval(process.stdout.strip())
-        elif args[:2] in {('destroy','instance'),('stop','instance')}:
+        elif args[:2] in {('destroy','instance'),('stop','instance'),('start','instance')}:
             wanted = int(args[2])
             for _ in range(4):
                 item = next((i for i in vast('show','instances') if i['id'] == wanted),None)
                 if args[0] == 'destroy' and item is None:
                     return {'success':True}
-                if args[0] == 'stop' and item is not None and item.get('intended_status') == 'stopped':
+                if args[0] in {'stop','start'} and item is not None and item.get('intended_status') == ('stopped' if args[0] == 'stop' else 'running'):
                     return {'success':True}
                 time.sleep(2)
             raise RuntimeError('Vast mutation did not reach its requested state')
